@@ -1,0 +1,307 @@
+body {
+    background: #e5e7eb;
+    font-family: sans-serif;
+}
+
+.navbar {
+    display: flex;
+    justify-content: center;
+    /* Center all items horizontally */
+    align-items: center;
+    /* Center the items vertically */
+    padding: 10px 20px;
+    /* Add some padding to the navbar */
+    width: 100%;
+    /* Make sure navbar takes up the full width */
+}
+
+.logo-container {
+    text-align: left;
+    /* Align logo to the left */
+}
+
+.logo {
+    max-height: 50px;
+    /* Adjust logo size */
+    width: auto;
+    /* Maintain aspect ratio */
+}
+
+.form-container {
+    display: flex;
+    justify-content: center;
+    flex-grow: 1;
+    padding: 0 2vw;
+
+}
+
+#date-form input[type="date"],
+#date-form button {
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+#date-form button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+#date-form button:hover {
+    background-color: #2980b9;
+}
+
+#date-form button[type="submit"] {
+    background-color: #2ecc71;
+}
+
+#date-form button[type="submit"]:hover {
+    background-color: #27ae60;
+}
+
+#date-form label {
+    font-weight: bold;
+}
+
+.dropdown-container {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    /* Prevent the container from expanding beyond screen width */
+}
+
+/* Dropdown button style */
+.dropdown-btn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    white-space: nowrap;
+    /* Prevent text wrapping */
+    margin-left: 40px;
+    /* Sola kaydırma, değeri ihtiyaca göre değiştirebilirsiniz */
+}
+
+/* Dropdown content style (hidden by default) */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    max-height: 300px;
+    /* Add a max-height */
+    overflow-y: auto;
+    /* Make it scrollable */
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+    border-radius: 4px;
+    width: 100%;
+    /* Ensure it does not overflow horizontally */
+    left: 0;
+    /* Align it with the button */
+}
+
+header {
+    background-color: #333;
+    /* Dark background color for the navbar */
+}
+
+/* Dropdown links */
+.dropdown-content a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+}
+
+/* Hover effect on dropdown links */
+.dropdown-content a:hover {
+    background-color: #f1f1f1
+}
+
+/* When the dropdown content is visible, check position */
+.dropdown-container.open .dropdown-content {
+    display: block;
+}
+
+/* Make sure the dropdown stays within viewport */
+@media (max-height: 600px) {
+    .dropdown-content {
+        max-height: 200px;
+        /* Adjust for smaller screens */
+    }
+}
+
+.a4-page {
+    width: 210mm;
+    height: 275mm;
+    background: white;
+    margin: 16px auto;
+
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+    /* Dikeyde sıralama */
+    justify-content: flex-start;
+    /* İçeriği yukarıya hizala */
+    align-items: stretch;
+    /* Kartın tüm genişliği kapsaması */
+}
+
+#top-units-table-container {
+    width: 100%;
+    overflow: hidden;
+    /* Hide the scrollbar */
+}
+
+#top-units-table-container table {
+    width: 100%;
+    font-size: 8px;
+    /* Smaller font size */
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+#top-units-table-container th,
+#top-units-table-container td {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.card>* {
+    margin-bottom: 50px;
+    /* Her öğe arasına 16px boşluk ekler */
+}
+
+/* Son öğeye boşluk eklememek için */
+.card>*:last-child {
+    margin-bottom: 0;
+}
+
+
+.card {
+    width: 100%;
+    height: 100%;
+    /* Sayfa yüksekliğini tam kapsar */
+    background-color: #f9f9f9;
+    padding: 24px;
+    border: none;
+
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#donut-container,
+#operating-systems,
+#language-distribution {
+    width: 60%;
+    margin: 0 auto;
+}
+
+.header-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.logo-top-right {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 150px;
+    /* Adjust the size as needed */
+    height: auto;
+}
+
+.logo-center {
+    width: 200px;
+    height: auto;
+    margin-left: 50px;
+}
+
+.text-container {
+    margin-top: 0;
+    padding-top: 0;
+    line-height: 1;
+    text-align: left;
+    /* sola hizalama */
+    align-items: flex-start;
+    /* sola hizalama için flex konteynerlerde */
+    display: flex;
+    flex-direction: column;
+    margin-left: 50px;
+}
+.date-info {
+    font-size: 16px;
+    color: #555;
+    margin-top: 10px;
+  }
+.filigran {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0.1;
+    /* Düşük opaklık = filigran efekti */
+    width: 500px;
+    /* Genişlik ayarı, gerekirse değiştir */
+    pointer-events: none;
+    /* Tıklanabilir olmasın */
+}
+
+.big-text {
+    font-size: 48px;
+    font-weight: bold;
+    margin: 0;
+    text-align: left;
+}
+
+.small-text {
+    font-size: 24px;
+    font-weight: normal;
+    margin-top: 8px;
+    /* Daha yakın görünüm için küçültüldü */
+    text-align: left;
+}
+
+
+/* Son öğeye boşluk eklememek için */
+.cover-card>*:last-child {
+    margin-bottom: 0;
+}
+
+
+.cover-card {
+    width: 100%;
+    height: 100%;
+    /* Sayfa yüksekliğini tam kapsar */
+    background-color: #f9f9f9;
+    padding: 24px;
+    border: none;
+
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+
+@media print {
+
+    header,
+    .navbar,
+    .logo-container,
+    .dropdown-container,
+    #date-form {
+        display: none !important;
+        /* Navbar ve form tamamen gizlenir */
+    }
+}

@@ -1,0 +1,405 @@
+/* frontend/styles.css */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background-color: #f4f7f6;
+  font-family: Arial, sans-serif;
+  background-color: #f4f7f6;
+
+}
+
+header {
+  background-color: #333;
+  /* Dark background color for the navbar */
+}
+
+.navbar {
+  display: flex;
+  justify-content: center;
+  /* Center all items horizontally */
+  align-items: center;
+  /* Center the items vertically */
+  padding: 10px 20px;
+  /* Add some padding to the navbar */
+  width: 100%;
+  /* Make sure navbar takes up the full width */
+}
+
+.logo-container {
+  text-align: left;
+  /* Align logo to the left */
+}
+
+.logo {
+  max-height: 50px;
+  /* Adjust logo size */
+  width: auto;
+  /* Maintain aspect ratio */
+}
+
+.form-container {
+  display: flex;
+  justify-content: center;
+  flex-grow: 1;
+  padding: 0 2vw;
+
+}
+
+#dashboard {
+  width: 95%;
+  margin: 50px auto;
+  text-align: center;
+}
+
+h1 {
+  color: #333;
+}
+
+#visits-container {
+  background-color: #fff;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+th,
+td {
+  padding: 8px;
+  border: 1px solid #ccc;
+  text-align: left;
+}
+
+.header-title {
+  font-size: 2rem;
+  /* Boyutu büyütür */
+  color: #333;
+  /* Başlık rengini belirler */
+  margin-bottom: 1rem;
+  /* Alt boşluk */
+}
+
+h2 {
+  margin-top: 40px;
+}
+
+#date-form input[type="date"],
+#date-form button {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+
+
+
+.dropdown-item {
+  display: block;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: black;
+  white-space: nowrap; /* tek satırda tutar */
+  overflow: hidden; /* taşanı keser */
+  text-overflow: ellipsis; /* ... ile gösterir */
+}
+
+.dropdown-item:hover {
+  background-color: #f0f0f0;
+}
+
+.dropdown-item.selected {
+  background-color: #d0e6ff;
+  /* seçili arka plan rengi */
+  font-weight: bold;
+}
+
+#date-form button {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  transition: background-color 0.2s;
+}
+
+#date-form button:hover {
+  background-color: #2980b9;
+}
+
+#date-form button[type="submit"] {
+  background-color: #2ecc71;
+}
+
+#date-form button[type="submit"]:hover {
+  background-color: #27ae60;
+}
+
+#date-form label {
+  font-weight: bold;
+}
+
+
+#from-to-events,
+#start-to-end-events,
+#daily-events,
+#hourly-events,
+#subcategory-table-container,
+#top-stores-container,
+#food-places-container,
+#services-container,
+#floors-container,
+#kiosks-container,
+#top-units-table-container,
+#searched-events,
+#top-searchs {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 30px auto;
+  /* Yatayda ortalama */
+}
+
+#donut-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 30px auto;
+}
+
+#area-chart-container {
+  width: 100%;
+  max-width: 950px;
+  margin-left: auto;
+  /* Soldan otomatik boşluk, sağa dayalı yapar */
+}
+
+#date-form {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 800px;
+  /* İstediğiniz maksimum genişlik */
+  margin-top: 20px;
+  /* Yukarıdan biraz boşluk */
+}
+
+.charts-row {
+  display: flex;
+  justify-content: space-between;
+  /* Aralarındaki boşluğu eşitler */
+  width: 100%;
+  /* Bu, mevcut genişliği %100 yapar, tam ekran genişliğine yayılır */
+}
+
+.pie-charts-row {
+  display: flex;
+  justify-content: center;
+  /* Merkezde konumlandırır */
+  width: 100%;
+  gap: 25%;
+  /* Pie chart'lar arasındaki boşluğu %5 olarak ayarladık */
+}
+
+#operating-systems,
+#language-distribution {
+  width: 45%;
+  /* Her pie chart'a %45 genişlik verir */
+  /*  Genişlikleri eşit yaparak aralarındaki boşluğu azaltıyoruz */
+}
+
+
+#test {
+  height: 100%;
+}
+
+g {
+  cursor: pointer;
+}
+
+.wrap {
+  stroke-width: 2px;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  font-weight: 800;
+  paint-order: stroke;
+}
+
+/* Dropdown container style */
+.dropdown-container {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  /* Prevent the container from expanding beyond screen width */
+}
+
+/* Dropdown button style */
+.dropdown-btn {
+  background-color: #4CAF50;
+  color: white;
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+  /* Prevent text wrapping */
+  margin-left: 40px;
+  /* Sola kaydırma, değeri ihtiyaca göre değiştirebilirsiniz */
+}
+
+/* Dropdown content style (hidden by default) */
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f9f9f9;
+  min-width: 160px;
+  max-height: 300px;
+  /* Add a max-height */
+  overflow-y: auto;
+  /* Make it scrollable */
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+  border-radius: 4px;
+  width: 100%;
+  /* Ensure it does not overflow horizontally */
+  left: 0;
+  /* Align it with the button */
+}
+
+/* Dropdown links */
+.dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+/* Hover effect on dropdown links */
+.dropdown-content a:hover {
+  background-color: #f1f1f1
+}
+
+/* When the dropdown content is visible, check position */
+.dropdown-container.open .dropdown-content {
+  display: block;
+}
+
+/* Make sure the dropdown stays within viewport */
+@media (max-height: 600px) {
+  .dropdown-content {
+    max-height: 200px;
+    /* Adjust for smaller screens */
+  }
+}
+
+
+
+#operating-systems {
+  width: 80%;
+  /* Yüzdeyle genişlik belirleme */
+  max-width: 500px;
+  /* Maksimum genişlik sınırı */
+  height: 500px;
+  /* Yüksekliği belirleme */
+  margin: 0 0 0 20px;
+  /* Sol margin'i artırarak sağa kaydırma */
+}
+
+
+
+#language-distribution {
+  width: 80%;
+  /* Yüzdeyle genişlik belirleme */
+  max-width: 500px;
+  /* Maksimum genişlik sınırı */
+  height: 500px;
+  /* Yüksekliği belirleme */
+  margin: 0 0 0 20px;
+  /* Sol margin'i artırarak sağa kaydırma */
+}
+
+.toggle-view-btn {
+  background-color: #e67e22;
+  color: white;
+  padding: 10px 20px;
+  margin-left: 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toggle-view-btn:hover {
+  background-color: #d35400;
+}
+
+@media print {
+
+  header,
+  .navbar,
+  .logo-container,
+  .dropdown-container,
+  #date-form {
+    display: none !important;
+    /* Navbar ve form tamamen gizlenir */
+  }
+
+  .card {
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .card>h2 {
+    display: none !important;
+    /* Card başlıkları da gizlenebilir */
+  }
+
+  .charts-row {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .charts-row>div {
+    width: 100% !important;
+    margin-bottom: 20px;
+  }
+
+
+
+  #print-stats-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between;
+    /* Aralarında boşluk bırakmak istersen */
+    gap: 10px;
+    /* İsteğe bağlı boşluk */
+  }
+
+  #print-stats-row>div {
+    width: 24% !important;
+    /* 4 eleman yan yana sığacak şekilde ayarla */
+  }
+
+  #operating-systems {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  #operating-systems canvas {
+    margin: 0 auto !important;
+  }
+}
