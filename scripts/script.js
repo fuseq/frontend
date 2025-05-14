@@ -295,11 +295,36 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
             // En çok etkinlik sayısına sahip tarihi ve etkinlik sayısını belirle
             let mostEventsDate = '';
             let mostEventsCount = 0;
+            let significantIncreaseDates = []; // Aşırı yükselme gösteren tarihler
 
-            data.forEach(item => {
+            // Veriyi sıralayalım (en son tarihten en eskiye doğru)
+            data.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            data.forEach((item, index) => {
+                // En çok etkinlik olan günü bul
                 if (item.totalEvents > mostEventsCount) {
                     mostEventsCount = item.totalEvents;
                     mostEventsDate = item.date;
+                }
+
+                // Önceki güne göre aşırı yükselme olup olmadığını kontrol et
+                if (index > 0) { // İlk öğe için karşılaştırma yapılmaz
+                    const previousItem = data[index - 1];
+
+                    // Eğer önceki günün etkinlik sayısı 0 ise, artışı dikkate alma
+                    if (previousItem.totalEvents === 0) {
+                        return; // Geçerli gün ile karşılaştırma yapma
+                    }
+
+                    // %30'dan fazla artış varsa bu günü aşırı yükselme olarak işaretleyelim
+                    if (item.totalEvents > previousItem.totalEvents * 1.3) {
+                        significantIncreaseDates.push({
+                            date: item.date,
+                            previousCount: previousItem.totalEvents,
+                            currentCount: item.totalEvents,
+                            increasePercentage: ((item.totalEvents - previousItem.totalEvents) / previousItem.totalEvents * 100).toFixed(2)
+                        });
+                    }
                 }
             });
 
@@ -309,18 +334,79 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
                 totalEvents: mostEventsCount
             };
             localStorage.setItem('mostEventsData', JSON.stringify(mostEventsData));
+
+            // Eğer aşırı yükselme gösteren tarihler varsa, bunları loglayalım
+            if (significantIncreaseDates.length > 0) {
+                console.log('Aşırı yükselme olan tarihler:', significantIncreaseDates);
+                localStorage.setItem('significantIncreaseDates', JSON.stringify(significantIncreaseDates));
+            }
+
         })
         .catch(err => {
             console.error('Günlük etkinlik verisi alınırken hata oluştu:', err);
             document.getElementById('daily-events').innerText = 'Veri alınamadı';
         });
 
+
+    function analyzeHourlyVisits(hourlyVisits) {
+        // Toplam ve ortalama hesapla
+        const totalVisits = hourlyVisits.reduce((sum, val) => sum + val, 0);
+        const average = totalVisits / hourlyVisits.length;
+        const roundedAverage = Math.ceil(average);
+
+        // Ortalamanın üzerindekileri filtrele
+        const aboveAverage = hourlyVisits
+            .map((value, hour) => ({ hour, value }))
+            .filter(item => item.value > average);
+
+        // En yüksek 3 saat
+        const top3AboveAverage = [...aboveAverage]
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 3)
+            .map(({ hour, value }) => ({
+                hour,
+                visits: Math.ceil(value)
+            }));
+
+        // En yüksek saat
+        const maxValue = Math.max(...hourlyVisits);
+        const peakHour = hourlyVisits.indexOf(maxValue);
+        const roundedMax = Math.ceil(maxValue);
+
+        // Kaydedilecek veri
+        const result = {
+            totalVisits: Math.ceil(totalVisits),
+            roundedAverage,
+            top3AboveAverage,
+            peakHour,
+            peakValue: roundedMax
+        };
+
+        // localStorage'a kaydet
+        localStorage.setItem('hourlyVisitAnalysis', JSON.stringify(result));
+
+        // Konsola yaz
+        console.log(`📈 Total Visits: ${Math.ceil(totalVisits)}`);
+        console.log(`📊 Average visits/hour (rounded): ${roundedAverage}`);
+        console.log("🔥 Top 3 hours above average:");
+        top3AboveAverage.forEach(({ hour, visits }) => {
+            console.log(`  - ${hour}:00 → ${visits} visits`);
+        });
+        console.log(`🚀 Peak Hour: ${peakHour}:00 with ${roundedMax} visits`);
+
+        return result;
+    }
+
+    // Örnek kullanım
     fetch(`http://localhost:3001/api/hourly-visits${params}`)
         .then(res => res.json())
         .then(data => {
-            console.log('API Yanıtı:', data);
+            console.log('saatlik Yanıtı:', data);
             if (data.success) {
                 renderHourlyEvents(data.hourlyVisits, 'hourly-events');
+
+                // 📈 Analiz işlemi burada
+                analyzeHourlyVisits(data.hourlyVisits);
             } else {
                 console.error('API başarısız:', data.message);
             }
@@ -549,6 +635,13 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
                 return;
             }
 
+            // Kiosk verisi içinde "web" veya "mobile-android" varsa tabloyu render etme
+            const isExcludedKiosk = cleanedData.some(kiosk => kiosk.kiosk === "web" || kiosk.kiosk === "mobile-android");
+            if (isExcludedKiosk) {
+                console.warn("Kiosk verisi 'web' veya 'mobile-android' içeriyor, işlem yapılmadı.");
+                return;
+            }
+
             // Toplam kullanım sayısını hesapla
             const totalActions = cleanedData.reduce((total, kiosk) => total + kiosk.actions, 0);
 
@@ -569,6 +662,7 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
         .catch(error => {
             console.error("Kampanya verisi alınırken hata oluştu:", error);
         });
+
 
     let ccpoResult = null;
     let eventResult = null;
@@ -705,6 +799,39 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
             console.error('Hata:', error);
         });
 
+
+    async function getHolidaysInRange(startDate, endDate) {
+        const hd = new Holidays('TR'); // TR = Turkey
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        const holidays = [];
+
+        for (let year = start.getFullYear(); year <= end.getFullYear(); year++) {
+            holidays.push(...hd.getHolidays(year));
+        }
+
+        const filtered = holidays.filter((h) => {
+            const date = new Date(h.date);
+            return (
+                date >= start &&
+                date <= end &&
+                (h.type === 'public' || h.type === 'religious')
+            );
+        });
+
+        return filtered.map(h => ({
+            name: h.name,
+            date: h.date,
+            type: h.type
+        }));
+    }
+
+    // Örnek çağırma
+    getHolidaysInRange('2025-03-01', '2025-10-31').then(result => {
+        console.log('holiday', result);
+    });
 
 
 
@@ -857,6 +984,9 @@ function populateSummaryData() {
     const summary10Element = document.getElementById("summary-10");
     const summary11Element = document.getElementById("summary-11");
     const summary12Element = document.getElementById("summary-12");
+    const summary13Element = document.getElementById("summary-13");
+    const summary14Element = document.getElementById("summary-14");
+    const summary15Element = document.getElementById("summary-15");
 
     if (summary1Element && summary2Element) {
         // İlk özet cümlesini güncelle
@@ -911,7 +1041,7 @@ function populateSummaryData() {
         const mostEventsDayName = getDayName(mostEventsDateObj);
 
         // summary3 cümlesini oluştur
-        summary3Element.innerHTML = `En çok kullanılan gün <strong>${mostEventsCount.toLocaleString("tr-TR")}</strong> kez ile <strong>${mostEventsFormattedDate}</strong> <strong>${mostEventsDayName}</strong> günü olmuştur.`;
+        summary3Element.innerHTML = `En çok işlem yapılan gün <strong>${mostEventsCount.toLocaleString("tr-TR")}</strong> kez ile <strong>${mostEventsFormattedDate}</strong> <strong>${mostEventsDayName}</strong> günü olmuştur.`;
     }
 
     // 7. özet: Cihaz türü
@@ -972,9 +1102,63 @@ function populateSummaryData() {
 
     if (mostUsedKioskId && usagePercentage) {
         summary12Element.style.display = 'block'; // görünür yap
-        summary12Element.innerHTML = `En çok kullanılan kiosk <strong>${mostUsedKioskId}</strong> olup, kullanım yüzdesi <strong>${usagePercentage}%</strong> olarak ölçülmüştür.`;
+        summary12Element.innerHTML = `<li>En çok kullanılan kiosk <strong>${mostUsedKioskId}</strong> olup, kullanım yüzdesi <strong>${usagePercentage}%</strong> olarak ölçülmüştür.</li>`;
     } else {
         summary12Element.style.display = 'none'; // gizle
+    }
+    const hourlyVisitAnalysis = JSON.parse(localStorage.getItem("hourlyVisitAnalysis"));
+    summary13Element.textContent = "";
+
+    if (hourlyVisitAnalysis && hourlyVisitAnalysis.roundedAverage) {
+        const roundedAverage = hourlyVisitAnalysis.roundedAverage;
+        summary13Element.innerHTML = `Saatlik ortalama ziyaret sayısı <strong>${roundedAverage}</strong> olarak hesaplanmıştır.`;
+    }
+    summary14Element.textContent = "";
+
+    if (hourlyVisitAnalysis && hourlyVisitAnalysis.top3AboveAverage && hourlyVisitAnalysis.peakHour !== undefined) {
+        const top3AboveAverage = hourlyVisitAnalysis.top3AboveAverage;
+        const peakHour = hourlyVisitAnalysis.peakHour;
+        const peakValue = hourlyVisitAnalysis.peakValue;
+
+        summary14Element.style.display = 'block'; // görünür yap
+
+        summary14Element.innerHTML = `
+       <li> En çok ziyaret edilen saatler:
+        <ul>
+            ${top3AboveAverage.map(({ hour, visits }) => `<li><strong>${hour}:00</strong> - ${Math.ceil(visits)} ziyaret</li>`).join('')}
+        </ul></li>`;
+    } else {
+        summary14Element.style.display = 'none'; // gizle
+    }
+
+    const significantIncreaseDates = JSON.parse(localStorage.getItem('significantIncreaseDates')) || [];
+
+    summary15Element.textContent = "";
+
+    // significantIncreaseDates'i artış yüzdesine göre azalan sırayla sıralayalım
+    const sortedIncreaseDates = significantIncreaseDates.sort((a, b) => parseFloat(b.increasePercentage) - parseFloat(a.increasePercentage));
+
+    // İlk 3 öğeyi al
+    const top3SignificantIncreases = sortedIncreaseDates.slice(0, 3);
+
+    // summary15 elementini temizle
+    summary15Element.textContent = "";
+
+    // Eğer significantIncreaseDates verisi varsa, summary15 elementini güncelle
+    if (top3SignificantIncreases.length > 0) {
+        summary15Element.style.display = 'block'; // Görünür yap
+
+        summary15Element.innerHTML = `
+        <li>Kullanımda sıçrama olan ilk 3 tarih:
+            <ul>
+                ${top3SignificantIncreases.map(({ date, increasePercentage }) => `
+                    <li>
+                        <strong>${date}</strong> tarihinde önceki güne göre %${increasePercentage} artış
+                    </li>`).join('')}
+            </ul>
+        </li>`;
+    } else {
+        summary15Element.style.display = 'none'; // Gizle
     }
 }
 
