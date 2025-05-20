@@ -597,56 +597,74 @@ export const renderOperatingSystemDistribution = (data, containerId) => {
     });
 };
 
+let others = [];
+
 export const renderLanguageDistribution = (data, containerId) => {
-    // Dil isimlerini ve ziyaretçi sayılarını ayırıyoruz
-    const labels = Object.keys(data).map(language => {
-        // Parantez açılmadan önceki kısmı alıyoruz
-        return language.split(' (')[0];  // Parantez öncesini alıyoruz
-    });
+    const sortedEntries = Object.entries(data).sort((a, b) => b[1] - a[1]);
 
-    const values = Object.values(data);  // Ziyaretçi sayıları
+    const top5 = sortedEntries.slice(0, 5);
+    others = sortedEntries.slice(5); // Global değişken
 
-    // Her dil için farklı bir arka plan rengi belirliyoruz
+    const labels = top5.map(([language]) => language.split(' (')[0]);
+    const values = top5.map(([, value]) => value);
+
+    if (others.length > 0) {
+        const otherTotal = others.reduce((sum, [, value]) => sum + value, 0);
+        labels.push('Diğer');
+        values.push(otherTotal);
+    }
+
     const backgroundColors = labels.map((_, i) => `hsl(${(i * 360 / labels.length)}, 70%, 60%)`);
 
-    // Dataset oluşturuyoruz
     const datasets = [{
         label: 'Dil Dağılımı',
         data: values,
         backgroundColor: backgroundColors,
     }];
 
-    // Container öğesini alıyoruz
     const container = document.getElementById(containerId);
-    container.innerHTML = '';  // Önceki içeriği temizliyoruz
+    container.innerHTML = '';
 
-    // Canvas oluşturuyoruz ve container'a ekliyoruz
     const canvas = document.createElement('canvas');
     container.appendChild(canvas);
 
-    // Chart.js ile pasta grafiği oluşturuyoruz
     new Chart(canvas, {
-        type: 'pie',  // Grafik tipi: pasta
+        type: 'pie',
         data: {
-            labels: labels,  // Dil isimlerini etiket olarak kullanıyoruz
-            datasets: datasets  // Dataset'i ekliyoruz
+            labels: labels,
+            datasets: datasets
         },
         options: {
             responsive: true,
             plugins: {
                 title: {
                     display: true,
-                    text: 'Dil Dağılımı'  // Başlık
+                    text: 'Dil Dağılımı (Top 5 + Diğer)'
                 },
                 legend: {
-                    position: 'right'  // Efsane sağda olacak
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (tooltipItem) {
+                            const label = tooltipItem.label;
+                            const value = tooltipItem.raw;
+
+                            if (label === 'Diğer') {
+                                const otherLabels = others.map(([lang]) => lang.split(' (')[0]);
+                                return [`${label}: ${value}`, ...otherLabels.map(l => `• ${l}`)];
+                            }
+
+                            return `${label}: ${value}`;
+                        }
+                    }
                 },
                 datalabels: {
                     color: '#fff',
                     formatter: (value, context) => {
                         const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                        const percentage = ((value / total) * 100).toFixed(1);  // Yüzde hesaplama
-                        return `${percentage}%`;  // Yüzdeyi döndürüyoruz
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${percentage}%`;
                     },
                     font: {
                         weight: 'bold',
@@ -655,7 +673,7 @@ export const renderLanguageDistribution = (data, containerId) => {
                 }
             }
         },
-        plugins: [ChartDataLabels]  // Verileri etiketlemek için ChartDataLabels eklentisi
+        plugins: [ChartDataLabels]
     });
 };
 

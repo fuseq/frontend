@@ -286,47 +286,91 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
             console.error("Fetch hatası:", err);
         });
 
-    fetch(`http://localhost:3001/api/events/daily-count${params}`)
-        .then(res => res.json())
-        .then(data => {
-            // renderDailyEvents fonksiyonunu çağırarak veriyi render et
-            renderDailyEvents(data, 'daily-events');
+    // API endpoint'i ve parametreleriniz
+    const apiEndpoint = `http://localhost:3001/api/events/daily-count${params}`;
 
-            // En çok etkinlik sayısına sahip tarihi ve etkinlik sayısını belirle
+    fetch(apiEndpoint)
+        .then(res => {
+            // Yanıtın başarılı olup olmadığını kontrol edin
+            if (!res.ok) {
+                throw new Error(`API isteği başarısız oldu, durum: ${res.status}`);
+            }
+            return res.json();
+        })
+        .then(data => {
+            // Gelen verinin formatını kontrol edin (örneğin, boş dizi olup olmadığını)
+            if (!Array.isArray(data) || data.length === 0) {
+                console.warn('API\'den boş veya geçersiz veri döndü.');
+                const dailyEventsElement = document.getElementById('daily-events');
+                if (dailyEventsElement) {
+                    dailyEventsElement.innerText = 'Veri bulunamadı veya geçersiz format.';
+                } else {
+                    console.error('Hata veya veri bulunamadı mesajını gösterecek HTML elementi (id="daily-events") bulunamadı.');
+                }
+                return; // İşlemi durdur
+            }
+
+            // Veriyi tarihe göre artan sırada sırala (en eskiden en yeniye)
+            data.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // renderDailyEvents fonksiyonunu çağırarak veriyi render et (isteğe bağlı)
+            // renderDailyEvents(data, 'daily-events');
+
+            const significantIncreaseDates = []; // Önemli artış gösteren tarihleri saklayacak dizi
+
+            // Yapılandırılabilir eşikler (thresholds)
+            const minEventDifference = 500; // Önceki güne göre minimum mutlak artış sayısı
+            const minPreviousCount = 100; // Artışın dikkate alınması için önceki gün minimum etkinlik sayısı
+            const minPercentageIncrease = 20; // Minimum yüzde artış oranı (% olarak)
+
+            // Veri üzerinde döngü yap, ilk elemanı atla (önceki gün yok)
+            for (let i = 1; i < data.length; i++) {
+                const previousDayData = data[i - 1]; // Önceki günün verisi
+                const currentDayData = data[i];     // İçinde bulunulan günün verisi
+
+                const previousCount = previousDayData.totalEvents;
+                const currentCount = currentDayData.totalEvents;
+
+                // Olası artış miktarını hesapla
+                const increaseAmount = currentCount - previousCount;
+
+                // Yüzde artışı hesapla (karşılaştırma için ondalıklı değer)
+                // previousCount 0 ise yüzde hesaplanamaz, bu durumu 0 olarak ele alalım
+                const rawPercentageIncrease = (previousCount > 0) ? (increaseAmount / previousCount) * 100 : 0;
+
+
+                if (currentCount > previousCount &&
+                    increaseAmount >= minEventDifference &&
+                    previousCount >= minPreviousCount &&
+                    rawPercentageIncrease >= minPercentageIncrease) // <-- Yeni Koşul Eklendi
+                {
+                    // Eğer tüm koşullar sağlanırsa, yüzdeyi iki ondalık basamağa yuvarla
+                    const percentageIncreaseFormatted = rawPercentageIncrease.toFixed(2);
+
+                    significantIncreaseDates.push({
+                        date: currentDayData.date, // Artışın yaşandığı gün (güncel tarih)
+                        previousDate: previousDayData.date, // Karşılaştırılan önceki gün
+                        previousCount: previousCount,
+                        currentCount: currentCount,
+                        increaseAmount: increaseAmount, // Mutlak artış miktarı (sayı olarak)
+                        increasePercentage: percentageIncreaseFormatted // Yüzde artış oranı (% olarak, formatlı)
+                    });
+                }
+            }
+
+            // En çok etkinlik olan günü de bulma (isteğe bağlı, ayrı bir işlem)
             let mostEventsDate = '';
             let mostEventsCount = 0;
-            let significantIncreaseDates = []; // Aşırı yükselme gösteren tarihler
-
-            // Veriyi sıralayalım (en son tarihten en eskiye doğru)
-            data.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            data.forEach((item, index) => {
-                // En çok etkinlik olan günü bul
+            // Sıralanmış veri üzerinde bulabiliriz, son tarihler dizinin sonundadır
+            data.forEach(item => {
                 if (item.totalEvents > mostEventsCount) {
                     mostEventsCount = item.totalEvents;
                     mostEventsDate = item.date;
                 }
-
-                // Önceki güne göre aşırı yükselme olup olmadığını kontrol et
-                if (index > 0) { // İlk öğe için karşılaştırma yapılmaz
-                    const previousItem = data[index - 1];
-
-                    // Eğer önceki günün etkinlik sayısı 0 ise, artışı dikkate alma
-                    if (previousItem.totalEvents === 0) {
-                        return; // Geçerli gün ile karşılaştırma yapma
-                    }
-
-                    // %30'dan fazla artış varsa bu günü aşırı yükselme olarak işaretleyelim
-                    if (item.totalEvents > previousItem.totalEvents * 1.3) {
-                        significantIncreaseDates.push({
-                            date: item.date,
-                            previousCount: previousItem.totalEvents,
-                            currentCount: item.totalEvents,
-                            increasePercentage: ((item.totalEvents - previousItem.totalEvents) / previousItem.totalEvents * 100).toFixed(2)
-                        });
-                    }
-                }
             });
+
+
+            // Sonuçları konsola yazdır ve localStorage'a kaydet
 
             // En çok etkinlik olan günü ve sayısını localStorage'a kaydet
             const mostEventsData = {
@@ -334,17 +378,30 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
                 totalEvents: mostEventsCount
             };
             localStorage.setItem('mostEventsData', JSON.stringify(mostEventsData));
+            console.log('En çok etkinlik olan gün:', mostEventsData);
 
-            // Eğer aşırı yükselme gösteren tarihler varsa, bunları loglayalım
+
+            // Aşırı yükselme gösteren tarihler varsa, bunları loglayalım ve kaydedelim
             if (significantIncreaseDates.length > 0) {
-                console.log('Aşırı yükselme olan tarihler:', significantIncreaseDates);
+                console.log('Günlük etkinlik sayısında önceki güne göre aşırı YÜKSELME olan tarihler (Min %' + minPercentageIncrease + ' Artış):', significantIncreaseDates);
                 localStorage.setItem('significantIncreaseDates', JSON.stringify(significantIncreaseDates));
+            } else {
+                console.log('Belirtilen koşullara uygun (Min %' + minPercentageIncrease + ' Artış) aşırı etkinlik yükselmesi olan tarih bulunamadı.');
+                // Eğer daha önce kaydedilmiş veri varsa temizle
+                localStorage.removeItem('significantIncreaseDates');
             }
+            renderDailyEvents(data, 'daily-events');
 
         })
         .catch(err => {
             console.error('Günlük etkinlik verisi alınırken hata oluştu:', err);
-            document.getElementById('daily-events').innerText = 'Veri alınamadı';
+            // Hata durumunda kullanıcıya bilgi verin
+            const dailyEventsElement = document.getElementById('daily-events');
+            if (dailyEventsElement) {
+                dailyEventsElement.innerText = 'Veri alınamadı.';
+            } else {
+                console.error('Hata mesajını gösterecek HTML elementi (id="daily-events") bulunamadı.');
+            }
         });
 
 
@@ -459,25 +516,35 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
         });
 
     fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(response => response.json())
-        .then(async data => {
-            const titleEventsMap = {};
-            let totalEvents = 0;
+        .then(response => {
+            if (!response.ok) { // İyi bir pratik: ilk fetch hatalarını kontrol edin
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(async searchedData => {
+            const titleEventsMap = {}; // Sadece 'searched' verisinden gelen başlık ve sayıları
+            // let totalEvents = 0; // Sadece 'searched' toplamı, artık birleşmiş toplamı kullanıyoruz
 
-            data.forEach(item => {
+            // Searched verisini işle
+            searchedData.forEach(item => {
                 const labelParts = item.label.split('->');
                 if (labelParts.length > 1) {
                     const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events || 0;
+                    const nbEvents = item.nb_events || 0; // item'ın kendi nb_events'ini kullan
 
                     titleEventsMap[eventName] = (titleEventsMap[eventName] || 0) + nbEvents;
-                    totalEvents += nbEvents;
+                    // totalEvents += nbEvents;
                 }
             });
 
-            console.log("Toplam Etkinlik Sayısı:", totalEvents);
-            console.log("Title Event Map:", titleEventsMap);
+            console.log("Title Event Map (Searched):", titleEventsMap);
+            // console.log("Total Events (Searched):", totalEvents);
 
+
+            // --- Mevcut Kod (Opsiyonel): Sadece searched verisinden en çok aranan tek birimi bulup kaydetme ---
+            // Eğer sadece searched verisinden en çok arananı ayrıca kaydetmeye devam etmek isterseniz bu kısmı tutun.
+            // Yeni gereksinim birleşmiş veriden en çok aranan 3'ü bulmak.
             const entries = Object.entries(titleEventsMap);
             if (entries.length > 0) {
                 const [mostSearchedUnit, maxCount] = entries.reduce((maxEntry, currentEntry) =>
@@ -490,41 +557,116 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
                 };
 
                 localStorage.setItem("mostSearchedUnit", JSON.stringify(mostSearchedData));
+                console.log("Most Searched Unit (from searched data):", mostSearchedData);
+            } else {
+                localStorage.removeItem("mostSearchedUnit");
+                console.log("No searched data to determine most searched unit.");
+            }
+            // --- Mevcut Kod Sonu ---
+
+
+            // Touched verisini al
+            const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
+            if (!touchedResponse.ok) { // İkinci fetch hatalarını kontrol edin
+                throw new Error(`HTTP error! status: ${touchedResponse.status}`);
+            }
+            const touchedData = await touchedResponse.json(); // touchedData'nın { title: count, ... } formatında geldiğini varsayıyoruz
+
+            const mergedMap = {}; // Birleşmiş başlık ve sayıları
+
+            // Searched sayılarını mergedMap'e ekle
+            for (const [title, count] of Object.entries(titleEventsMap)) {
+                mergedMap[title] = count;
             }
 
-            // Kategorize etme işlemi
-            const categoryData = await summarizeTitlesWithDetails(titleEventsMap, `./assets/${globalSiteId}.json`, totalEvents);
+            // Touched sayılarını mergedMap'e ekle (birleştir)
+            for (const [title, count] of Object.entries(touchedData)) {
+                if (mergedMap[title]) {
+                    mergedMap[title] += count; // Eğer başlık varsa, touched sayısını üzerine ekle
+                } else {
+                    mergedMap[title] = count; // Eğer başlık yoksa, touched sayısıyla yeni giriş oluştur
+                }
+            }
 
-            renderTopUnitsTable(categoryData, "top-units-table-container", totalEvents);
+            console.log("Birleşmiş Veri (Başlık -> Toplam Sayı):", mergedMap);
+
+            // Birleşmiş veriden toplam etkinik sayısını hesapla
+            const combinedTotalEvents = Object.values(mergedMap).reduce((sum, count) => sum + count, 0);
+            console.log("Birleşmiş Toplam Etkinlik Sayısı (Searched + Touched):", combinedTotalEvents);
+
+
+            // --- Yeni Kısım: Birleşmiş Veriden En Çok Kullanılan 3 Birimi Bul ---
+
+            // mergedMap'teki veriyi sıralanabilir bir diziye dönüştür
+            const sortedMergedUnits = Object.keys(mergedMap)
+                .map(unit => ({ unit: unit, count: mergedMap[unit] })) // { unit: "Birim Adı", count: 25 } formatına çevir
+                .sort((a, b) => b.count - a.count); // Kullanım sayısına göre azalan sırada sırala
+
+            // En üstteki 3 birimi al
+            const top3CombinedUnits = sortedMergedUnits.slice(0, 3);
+
+            console.log("En Çok Kullanılan 3 Birim (Toplamdan):", top3CombinedUnits);
+
+            // --- localStorage'a Kaydetme: En Çok Kullanılan 3 Birim (Toplamdan) ---
+            // localStorage sadece string saklar, bu yüzden diziyi JSON stringine çevirin
+            if (top3CombinedUnits.length > 0) { // Kaydedilecek bir birim olup olmadığını kontrol et
+                localStorage.setItem('top3CombinedUnits', JSON.stringify(top3CombinedUnits));
+                console.log('En çok kullanılan 3 birim (toplamdan) localStoragea kaydedildi.');
+            } else {
+                // localStorage.removeItem('top3CombinedUnits'); // İsteğe bağlı: Veri yoksa temizle
+                console.warn('Kaydedilecek en çok kullanılan 3 birim (toplamdan) bulunamadı.');
+            }
+            // --- Yeni Kısım Sonu ---
+
+
+            // Kategorize etme ve Render etme (birleşmiş veriyi summarizeTitlesWithDetails'a göndererek)
+            // summarizeTitlesWithDetails fonksiyonunun mergedMap objesini beklediğini varsayıyoruz
+            const categoryData = await summarizeTitlesWithDetails(mergedMap, `./assets/${globalSiteId}.json`, combinedTotalEvents);
+            renderTopUnitsTable(categoryData, "top-units-table-container", combinedTotalEvents);
+
+            // Diğer render işlemleri (categoryData veya searchedData'yı kullanarak)
+            // renderSearchedEvents(searchedData, 'searched-events'); // Eğer gerekli ise
+            // renderStoreCategoriesDonutChart(categoryData, "donut-container"); // Eğer kategori donut chartı gerekli ise
+
         })
         .catch(error => {
             console.error("Hata oluştu:", error);
+            // Hata yönetimi: Kullanıcıya bilgi ver, UI'ı güncelle, localStorage'ı temizle
+            // localStorage.removeItem("mostSearchedUnit"); // Eğer kullanılıyorsa
+            // localStorage.removeItem("top3CombinedUnits");
         });
+
 
     fetch(`http://localhost:3001/api/events/searched${params}`)
         .then(response => response.json())
-        .then(async data => {
+        .then(async searchedData => {
             const titleEventsMap = {}; // { 'storeName': toplamEventSayısı }
             let totalEvents = 0;
 
-            data.forEach(item => {
+            // Searched verisini işle
+            searchedData.forEach(item => {
                 const labelParts = item.label.split('->');
                 if (labelParts.length > 1) {
                     const eventName = labelParts[1].trim();
                     const nbEvents = item.nb_events;
 
-                    // Eğer bu başlık zaten varsa, event sayısını üzerine ekle
-                    if (titleEventsMap[eventName]) {
-                        titleEventsMap[eventName] += nbEvents;
-                    } else {
-                        titleEventsMap[eventName] = nbEvents;
-                    }
-
+                    titleEventsMap[eventName] = (titleEventsMap[eventName] || 0) + nbEvents;
                     totalEvents += nbEvents;
                 }
             });
 
-            console.log("Store-Toplam Etkinlik Sayısı:", totalEvents);
+            // Touched verisini al
+            const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
+            const touchedData = await touchedResponse.json();
+
+            // Touched verisini titleEventsMap'e ekle
+            for (const [title, count] of Object.entries(touchedData)) {
+                titleEventsMap[title] = (titleEventsMap[title] || 0) + count;
+                totalEvents += count;
+            }
+
+            console.log("Store-Toplam Etkinlik Sayısı (Searched + Touched):", totalEvents);
+            console.log("Birleştirilmiş titleEventsMap:", titleEventsMap);
 
             // Yeni yapıya uygun çağrı
             const categoryData = await summarizeTopStoresByCategory(titleEventsMap, `./assets/${globalSiteId}.json`, totalEvents);
@@ -535,27 +677,46 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
         .catch(error => {
             console.error("Hata oluştu:", error);
         });
+
     fetch(`http://localhost:3001/api/events/searched${params}`)
         .then(response => response.json())
-        .then(async data => {
-            console.log("Gelen event verileri:", data); // << BURADA TÜM VERİYİ GÖSTERİR
+        .then(async searchedData => {
+            console.log("Gelen event verileri (searched):", searchedData);
 
-            const titlesWithCounts = [];
-            let totalEvents = 0; // Toplam event sayısı için bir değişken
+            const titleEventCountMap = {};
+            let totalEvents = 0;
 
-            data.forEach(item => {
+            // Searched verisini işle
+            searchedData.forEach(item => {
                 const labelParts = item.label.split('->');
                 if (labelParts.length > 1) {
                     const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events; // Event'e ait sayıyı alıyoruz
-                    titlesWithCounts.push({ eventName, nbEvents }); // Etkinlik ismi ve sayısını bir obje olarak ekliyoruz
+                    const nbEvents = item.nb_events;
 
-                    totalEvents += nbEvents; // Toplam etkinlik sayısına ekliyoruz
+                    titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + nbEvents;
+                    totalEvents += nbEvents;
                 }
             });
 
-            // Toplam etkinlik sayısının doğru hesaplanıp hesaplanmadığını kontrol et
-            console.log("Toplam Etkinlik Sayısı:", totalEvents); // Toplam etkinlik sayısını yazdırıyoruz
+            // Touched verisini al
+            const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
+            const touchedData = await touchedResponse.json();
+            console.log("Gelen event verileri (touched):", touchedData);
+
+            // Touched verisini işle
+            for (const [eventName, count] of Object.entries(touchedData)) {
+                titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + count;
+                totalEvents += count;
+            }
+
+            // titleEventCountMap’i titlesWithCounts formatına çevir
+            const titlesWithCounts = Object.entries(titleEventCountMap).map(([eventName, nbEvents]) => ({
+                eventName,
+                nbEvents
+            }));
+
+            console.log("Toplam Etkinlik Sayısı (Searched + Touched):", totalEvents);
+            console.log("titlesWithCounts:", titlesWithCounts);
 
             // Kategorize etme işlemi
             const categoryData = await summarizeTopFoodStoresByCategory(titlesWithCounts, `./assets/${globalSiteId}.json`, totalEvents);
@@ -578,28 +739,45 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
             console.error("Hata oluştu:", error);
         });
 
-
     fetch(`http://localhost:3001/api/events/searched${params}`)
         .then(response => response.json())
-        .then(async data => {
-            console.log("Gelen event verileri:", data); // << BURADA TÜM VERİYİ GÖSTERİR
+        .then(async searchedData => {
+            console.log("Gelen event verileri (searched):", searchedData);
 
-            const titlesWithCounts = [];
-            let totalEvents = 0; // Toplam event sayısı için bir değişken
+            const titleEventCountMap = {};
+            let totalEvents = 0;
 
-            data.forEach(item => {
+            // Searched verisini işle
+            searchedData.forEach(item => {
                 const labelParts = item.label.split('->');
                 if (labelParts.length > 1) {
                     const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events; // Event'e ait sayıyı alıyoruz
-                    titlesWithCounts.push({ eventName, nbEvents }); // Etkinlik ismi ve sayısını bir obje olarak ekliyoruz
+                    const nbEvents = item.nb_events;
 
-                    totalEvents += nbEvents; // Toplam etkinlik sayısına ekliyoruz
+                    titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + nbEvents;
+                    totalEvents += nbEvents;
                 }
             });
 
-            // Toplam etkinlik sayısının doğru hesaplanıp hesaplanmadığını kontrol et
-            console.log("Toplam Etkinlik Sayısı:", totalEvents); // Toplam etkinlik sayısını yazdırıyoruz
+            // Touched verisini al
+            const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
+            const touchedData = await touchedResponse.json();
+            console.log("Gelen event verileri (touched):", touchedData);
+
+            // Touched verisini işle
+            for (const [eventName, count] of Object.entries(touchedData)) {
+                titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + count;
+                totalEvents += count;
+            }
+
+            // titleEventCountMap’i titlesWithCounts formatına çevir
+            const titlesWithCounts = Object.entries(titleEventCountMap).map(([eventName, nbEvents]) => ({
+                eventName,
+                nbEvents
+            }));
+
+            console.log("Toplam Etkinlik Sayısı (Searched + Touched):", totalEvents);
+            console.log("titlesWithCounts:", titlesWithCounts);
 
             // Kategorize etme işlemi
             const categoryData = await summarizeTopServicesByCategory(titlesWithCounts, `./assets/${globalSiteId}.json`, totalEvents);
@@ -610,7 +788,6 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
         .catch(error => {
             console.error("Hata oluştu:", error);
         });
-
 
 
 
@@ -800,38 +977,6 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
         });
 
 
-    async function getHolidaysInRange(startDate, endDate) {
-        const hd = new Holidays('TR'); // TR = Turkey
-
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-
-        const holidays = [];
-
-        for (let year = start.getFullYear(); year <= end.getFullYear(); year++) {
-            holidays.push(...hd.getHolidays(year));
-        }
-
-        const filtered = holidays.filter((h) => {
-            const date = new Date(h.date);
-            return (
-                date >= start &&
-                date <= end &&
-                (h.type === 'public' || h.type === 'religious')
-            );
-        });
-
-        return filtered.map(h => ({
-            name: h.name,
-            date: h.date,
-            type: h.type
-        }));
-    }
-
-    // Örnek çağırma
-    getHolidaysInRange('2025-03-01', '2025-10-31').then(result => {
-        console.log('holiday', result);
-    });
 
 
 
@@ -987,6 +1132,7 @@ function populateSummaryData() {
     const summary13Element = document.getElementById("summary-13");
     const summary14Element = document.getElementById("summary-14");
     const summary15Element = document.getElementById("summary-15");
+    const summary16Element = document.getElementById("summary-16");
 
     if (summary1Element && summary2Element) {
         // İlk özet cümlesini güncelle
@@ -1004,7 +1150,10 @@ function populateSummaryData() {
     const mostUsedCategory = localStorage.getItem("mostUsedCategory");
     summary4Element.textContent = "";
 
-    if (mostUsedCategory) {
+    if (mostUsedCategory === "Stand") {
+        summary4Element.style.display = "none";
+    } else if (mostUsedCategory) {
+        summary4Element.style.display = "block"; // Eğer daha önce gizlendiyse yeniden göster
         summary4Element.innerHTML = `Kullanıcılar arasında en çok ilgi gören kategori <strong>${mostUsedCategory}</strong> olmuştur.`;
     }
 
@@ -1149,16 +1298,29 @@ function populateSummaryData() {
         summary15Element.style.display = 'block'; // Görünür yap
 
         summary15Element.innerHTML = `
-        <li>Kullanımda sıçrama olan ilk 3 tarih:
+        <li>Kullanımda sıçrama olan tarihler:
             <ul>
                 ${top3SignificantIncreases.map(({ date, increasePercentage }) => `
                     <li>
-                        <strong>${date}</strong> tarihinde önceki güne göre %${increasePercentage} artış
+                        <strong>${date}</strong> tarihinde ortalamaya göre %${increasePercentage} artış
                     </li>`).join('')}
             </ul>
         </li>`;
     } else {
         summary15Element.style.display = 'none'; // Gizle
+    }
+
+    const top3CombinedUnits = JSON.parse(localStorage.getItem("top3CombinedUnits"));
+    summary16Element.textContent = ""; // Önce içeriği temizle
+
+    if (top3CombinedUnits && Array.isArray(top3CombinedUnits)) {
+        const sentence = top3CombinedUnits
+            .map((item, index) => `<strong>${item.unit}</strong> (${item.count} kez)`)
+            .join(", ");
+
+        summary16Element.innerHTML = `Kullanıcılar arasında en çok ilgi gören ilk 3 birim sırasıyla: ${sentence}.`;
+    } else {
+        summary16Element.textContent = "Henüz bir kombinasyon verisi bulunmamaktadır.";
     }
 }
 
