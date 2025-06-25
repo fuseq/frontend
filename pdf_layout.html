@@ -10,6 +10,7 @@
   <link href="https://unpkg.com/@coreui/coreui@4.0.0/dist/css/coreui.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/flowbite@1.4.2/dist/flowbite.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icon-css/css/flag-icon.min.css">
   <link rel="stylesheet" href="pdf_style.css">
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -70,12 +71,13 @@
     <div class="a4-page">
       <div class="card" style="padding: 20px;">
         <h2 class="header-title">Özet Bilgiler</h2>
-        <ul class="list-disc ml-6 text-lg" id="summary-list">
+        <ul class="list-disc ml-6 text-base" id="summary-list">
           <li id="summary-1" class="mb-2"></li>
           <li id="summary-2" class="mb-2"></li>
           <li id="summary-3" class="mb-2"></li>
           <li id="summary-15" class="mb-2"></li>
           <li id="summary-7" class="mb-2"></li>
+          <li id="summary-17" class="mb-2"></li>
           <li id="summary-8" class="mb-2"></li>
           <li id="summary-13" class="mb-2"></li>
           <li id="summary-14" class="mb-2"></li>
@@ -87,6 +89,7 @@
           <li id="summary-16" class="mb-2"></li>
           <li id="summary-5" class="mb-2"></li>
           <li id="summary-6" class="mb-2"></li>
+          <li id="summary-18" class="mb-2"></li>
 
         </ul>
       </div>
@@ -94,8 +97,10 @@
     <div class="a4-page">
       <div class="card">
         <h2 class="header-title">Kullanım İstatistiği</h2>
-        <div id="daily-events"></div>
-        <div id="hourly-events"></div>
+        <div class="charts-row">
+          <div id="daily-events"></div>
+          <div id="hourly-events"></div>
+        </div>
       </div>
     </div>
     <div class="a4-page">

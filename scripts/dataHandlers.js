@@ -1,44 +1,60 @@
 // Ziyaretçi verisini çeker ve bar chart oluşturur
 
+const generatePastelColorScale = (count) => {
+    const baseHueStart = 180;   // Başlangıç tonu (cyan-mavi)
+    const baseHueEnd = 360;     // Bitiş tonu (kırmızı-mor)
+    const saturation = 40;      // Daha yüksek doygunluk (Daha belirgin pastel)
+    const lightnessStart = 60;  // Başlangıçta daha koyu renkler
+    const lightnessEnd = 80;    // Bitiş noktasında daha açık ancak kontrastlı renkler
+
+    return Array.from({ length: count }, (_, i) => {
+        const hue = baseHueStart + (baseHueEnd - baseHueStart) * (i / (count - 1)); // Tonu farklı yapıyoruz
+        const lightness = lightnessStart + ((lightnessEnd - lightnessStart) * (i / (count - 1))); // Açıklığı çeşitlendiriyoruz
+        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    });
+};
 
 export const renderFromToEvents = (data, containerId) => {
     const startPoints = {};
     const endPoints = {};
 
-    // Organize the data by start and end points
+    // Veriyi başlangıç ve bitiş noktalarına göre organize et
     data.forEach(item => {
         const [start, end] = item.label.split('->');
         startPoints[start.trim()] = (startPoints[start.trim()] || 0) + item.nb_events;
         endPoints[end.trim()] = (endPoints[end.trim()] || 0) + item.nb_events;
     });
 
-    // Get the top 5 start and end points
-    const topStartPoints = Object.entries(startPoints).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    // En çok kullanılan 5 başlangıç ve bitiş noktalarını al
+    const topStartPoints = Object.entries(startPoints).sort((a, b) => b[1] - a[1]);
     const topEndPoints = Object.entries(endPoints).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-    // Create labels for the x-axis based on the end points
+    // X ekseni için bitiş noktalarına dayalı etiketler oluştur
     const startLabels = topStartPoints.map(([start]) => start);
     const endLabels = topEndPoints.map(([end]) => end);
 
-    // Prepare datasets for each start point with its corresponding end points
-    const datasets = topStartPoints.map(([start, startCount]) => {
+    // Pastel renkleri generatePastelColorScale ile al
+    const backgroundColors = generatePastelColorScale(topStartPoints.length);
+
+    // Başlangıç noktalarına göre ve ilgili bitiş noktalarıyla datasetler oluştur
+    const datasets = topStartPoints.map(([start, startCount], i) => {
         return {
             label: start,
             data: topEndPoints.map(([end]) => {
-                // Count how many times this start point has the respective end point
+                // Bu başlangıç noktası için ilgili bitiş noktasının sayısını hesapla
                 return data.filter(item => {
                     const [itemStart, itemEnd] = item.label.split('->');
                     return itemStart.trim() === start && itemEnd.trim() === end;
                 }).reduce((sum, item) => sum + item.nb_events, 0);
             }),
-            backgroundColor: `hsl(${Math.random() * 360}, 70%, 60%)`, // Random color for each dataset
+            backgroundColor: backgroundColors[i],  // Pastel rengini burada kullanıyoruz
             stack: 'fromTo',
         };
     });
 
-    // Create the chart
+    // Grafiği oluştur
     const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Clear the container
+    container.innerHTML = ''; // Mevcut grafiği temizle
 
     const canvas = document.createElement('canvas');
     container.appendChild(canvas);
@@ -46,7 +62,7 @@ export const renderFromToEvents = (data, containerId) => {
     new Chart(canvas, {
         type: 'bar',
         data: {
-            labels: endLabels, // The end points on the x-axis
+            labels: endLabels, // X ekseninde bitiş noktaları
             datasets: datasets,
         },
         options: {
@@ -57,7 +73,7 @@ export const renderFromToEvents = (data, containerId) => {
                     text: 'En Çok Gidilen Yerler ve Nerelerden Gidildiği',
                 },
                 legend: {
-                    display: false, // Remove the legend
+                    display: false, // Legend'ı kaldırıyoruz
                 },
                 datalabels: {
                     color: 'white',
@@ -65,7 +81,11 @@ export const renderFromToEvents = (data, containerId) => {
                     align: 'center',
                     formatter: (value, context) => {
                         if (value > 0) {
-                            return context.dataset.label; // Show the start point label on top of each bar
+                            let label = context.dataset.label;
+                            if (label.length > 15) {
+                                return label.slice(0, 12) + '...'; // Örneğin 12 karaktere kadar göster
+                            }
+                            return label;
                         }
                         return '';
                     },
@@ -87,7 +107,13 @@ export const renderFromToEvents = (data, containerId) => {
                         text: 'Bitiş Noktaları',
                     },
                     ticks: {
-                        display: true // Hide x-axis labels
+                        display: true,
+                        callback: function (value, index, ticks) {
+                            const label = this.getLabelForValue(value);
+                            return label.length > 15 ? label.slice(0, 20) + '...' : label;
+                        },
+                        maxRotation: 30,  // Etiketleri hafif döndürmek için
+                        minRotation: 0
                     }
                 },
                 y: {
@@ -100,48 +126,61 @@ export const renderFromToEvents = (data, containerId) => {
                 },
             },
         },
-        plugins: [ChartDataLabels], // Plugin to show data labels
+        plugins: [ChartDataLabels], // Verileri etiketle göster
     });
 };
+
 
 export const renderFromToEventsByStart = (data, containerId) => {
     const startPoints = {};
     const endPoints = {};
 
-    // Organize the data by start and end points
+    // Veriyi başlangıç ve bitiş noktalarına göre organize et
     data.forEach(item => {
         const [start, end] = item.label.split('->');
         startPoints[start.trim()] = (startPoints[start.trim()] || 0) + item.nb_events;
         endPoints[end.trim()] = (endPoints[end.trim()] || 0) + item.nb_events;
     });
 
-    // Get the top 5 start and end points
-    const topStartPoints = Object.entries(startPoints).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const topEndPoints = Object.entries(endPoints).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const hydrogenAndCoData = data.filter(item => {
+        const [start] = item.label.split('->');
+        return start.trim() === 'HYDROGEN AND CO';
+    });
+    console.log('HYDROGEN AND CO ile ilişkili veriler:', hydrogenAndCoData);
+    const h2StageCount = endPoints['H2 Sahnesi / H2 Stage'];
+    console.log('H2 Sahnesi / H2 Stage toplam sayısı:', h2StageCount);
 
-    // Create labels for the x-axis based on the start points
+    // En çok kullanılan 5 başlangıç ve bitiş noktalarını al
+    const topStartPoints = Object.entries(startPoints).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const topEndPoints = Object.entries(endPoints)
+        .sort((a, b) => b[1] - a[1]);
+    console.log('Top 5 hedef noktalar (endPoints):', topEndPoints.map(e => e[0]));
+    // X ekseni için başlangıç noktalarına dayalı etiketler oluştur
     const startLabels = topStartPoints.map(([start]) => start);
     const endLabels = topEndPoints.map(([end]) => end);
 
-    // Prepare datasets for each end point with its corresponding start points
-    const datasets = topEndPoints.map(([end, endCount]) => {
+    // Pastel renkleri generatePastelColorScale ile al
+    const backgroundColors = generatePastelColorScale(topEndPoints.length);
+
+    // Bitiş noktalarına göre ve ilgili başlangıç noktalarıyla datasetler oluştur
+    const datasets = topEndPoints.map(([end, endCount], i) => {
         return {
             label: end,
             data: topStartPoints.map(([start]) => {
-                // Count how many times this end point has the respective start point
+                // Bu bitiş noktası için ilgili başlangıç noktasının sayısını hesapla
                 return data.filter(item => {
                     const [itemStart, itemEnd] = item.label.split('->');
                     return itemEnd.trim() === end && itemStart.trim() === start;
                 }).reduce((sum, item) => sum + item.nb_events, 0);
             }),
-            backgroundColor: `hsl(${Math.random() * 360}, 70%, 60%)`, // Random color for each dataset
+            backgroundColor: backgroundColors[i],  // Pastel rengini burada kullanıyoruz
             stack: 'fromTo',
         };
     });
 
-    // Create the chart
+    // Grafiği oluştur
     const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Clear the container
+    container.innerHTML = ''; // Mevcut grafiği temizle
 
     const canvas = document.createElement('canvas');
     container.appendChild(canvas);
@@ -149,7 +188,7 @@ export const renderFromToEventsByStart = (data, containerId) => {
     new Chart(canvas, {
         type: 'bar',
         data: {
-            labels: startLabels, // The start points on the x-axis
+            labels: startLabels, // X ekseninde başlangıç noktaları
             datasets: datasets,
         },
         options: {
@@ -160,7 +199,7 @@ export const renderFromToEventsByStart = (data, containerId) => {
                     text: 'Başlangıç Noktalarına Göre Hedef Dağılımı',
                 },
                 legend: {
-                    display: false, // Remove the legend
+                    display: false, // Legend'ı kaldırıyoruz
                 },
                 datalabels: {
                     color: 'white',
@@ -168,7 +207,11 @@ export const renderFromToEventsByStart = (data, containerId) => {
                     align: 'center',
                     formatter: (value, context) => {
                         if (value > 0) {
-                            return context.dataset.label; // Show the end point label on top of each bar
+                            let label = context.dataset.label;
+                            if (label.length > 15) {
+                                return label.slice(0, 12) + '...'; // Örneğin 12 karaktere kadar göster
+                            }
+                            return label;
                         }
                         return '';
                     },
@@ -190,7 +233,13 @@ export const renderFromToEventsByStart = (data, containerId) => {
                         text: 'Başlangıç Noktaları',
                     },
                     ticks: {
-                        display: true // Show x-axis labels
+                        display: true,
+                        callback: function (value, index, ticks) {
+                            const label = this.getLabelForValue(value);
+                            return label.length > 15 ? label.slice(0, 12) + '...' : label;
+                        },
+                        maxRotation: 30,  // Etiketleri hafif döndürmek için
+                        minRotation: 0
                     }
                 },
                 y: {
@@ -203,9 +252,10 @@ export const renderFromToEventsByStart = (data, containerId) => {
                 },
             },
         },
-        plugins: [ChartDataLabels], // Plugin to show data labels
+        plugins: [ChartDataLabels], // Verileri etiketle göster
     });
 };
+
 
 
 
@@ -213,7 +263,12 @@ export const renderSearchedEvents = (data, containerId) => {
     const placeMap = {};
 
     data.forEach(item => {
-        const [searchTerm, selectedPlace] = item.label.split('->').map(str => str.trim());
+        let [searchTerm, selectedPlace] = item.label.split('->').map(str => str.trim());
+
+        // Eğer searchTerm boşsa, "Doğrudan Seçim" olarak etiketle
+        if (!searchTerm) {
+            searchTerm = "Doğrudan Seçim";
+        }
 
         if (!placeMap[selectedPlace]) {
             placeMap[selectedPlace] = {};
@@ -231,7 +286,7 @@ export const renderSearchedEvents = (data, containerId) => {
 
     const topPlaces = placeTotals
         .sort((a, b) => b.total - a.total)
-        .slice(0, 10)
+        .slice(0, 5)
         .map(entry => entry.place);
 
     const labels = topPlaces;
@@ -247,10 +302,13 @@ export const renderSearchedEvents = (data, containerId) => {
 
     const allSearchTerms = Array.from(allSearchTermsSet);
 
+    // 🔽 Generate pastel colors for each search term
+    const pastelColors = generatePastelColorScale(allSearchTerms.length);
+
     const datasets = allSearchTerms.map((term, index) => ({
         label: term,
         data: labels.map(place => placeMap[place][term] || 0),
-        backgroundColor: `hsl(${(index * 60) % 360}, 70%, 60%)`,
+        backgroundColor: pastelColors[index],  // Pastel renk kullanıyoruz
         stack: 'search'
     }));
 
@@ -271,7 +329,7 @@ export const renderSearchedEvents = (data, containerId) => {
             plugins: {
                 title: {
                     display: true,
-                    text: 'En Çok Seçilen Yerler ve Arama Kaynakları (İlk 10)'
+                    text: 'En Çok Seçilen Yerler ve Arama Kaynakları (İlk 5)'
                 },
                 legend: {
                     display: false
@@ -282,7 +340,11 @@ export const renderSearchedEvents = (data, containerId) => {
                     align: 'center',
                     formatter: (value, context) => {
                         if (value > 0) {
-                            return context.dataset.label;
+                            let label = context.dataset.label;
+                            if (label.length > 15) {
+                                return label.slice(0, 12) + '...'; // Örneğin 12 karaktere kadar göster
+                            }
+                            return label;
                         }
                         return '';
                     },
@@ -302,7 +364,8 @@ export const renderSearchedEvents = (data, containerId) => {
                     title: {
                         display: true,
                         text: 'Seçilen Yer'
-                    }
+                    },
+
                 },
                 y: {
                     stacked: true,
@@ -325,22 +388,28 @@ export const renderTop5SearchedTerms = (data, containerId) => {
     data.forEach(item => {
         const [searchTerm] = item.label.split('->').map(str => str.trim());
 
+        // 🔍 Sadece gerçekten bir şey yazılmışsa (arama terimi varsa) dahil et
+        if (!searchTerm) return;
+
         searchTermMap[searchTerm] =
             (searchTermMap[searchTerm] || 0) + item.nb_events;
     });
 
     // Arama terimlerini toplam seçim sayısına göre azalan sırayla sıralıyoruz
     const sortedSearchTerms = Object.entries(searchTermMap)
-        .sort((a, b) => b[1] - a[1]) // b[1] > a[1] ile azalan sıralama
+        .sort((a, b) => b[1] - a[1]) // Azalan sıralama
         .slice(0, 5); // En çok yapılan 5 aramayı alıyoruz
 
     const labels = sortedSearchTerms.map(([term]) => term);
     const dataValues = sortedSearchTerms.map(([, count]) => count);
 
+    // Pastel renkler için fonksiyonu kullanıyoruz
+    const pastelColors = generatePastelColorScale(labels.length);
+
     const datasets = [{
         label: 'En Çok Yapılan Aramalar',
         data: dataValues,
-        backgroundColor: labels.map((_, index) => `hsl(${(index * 60) % 360}, 70%, 60%)`),
+        backgroundColor: pastelColors,
     }];
 
     const container = document.getElementById(containerId);
@@ -350,7 +419,7 @@ export const renderTop5SearchedTerms = (data, containerId) => {
     container.appendChild(canvas);
 
     new Chart(canvas, {
-        type: 'bar', // Düz bar grafiği için bar tipini kullanıyoruz
+        type: 'bar',
         data: {
             labels,
             datasets
@@ -363,10 +432,23 @@ export const renderTop5SearchedTerms = (data, containerId) => {
                     text: 'En Çok Yapılan 5 Arama'
                 },
                 legend: {
-                    display: false // Alt legend'ı kaldırıyoruz
+                    display: false
                 },
                 datalabels: {
-                    display: false // Veri etiketlerini gizliyoruz
+                    display: true,
+                    color: '#fff',
+                    font: {
+                        weight: 'normal',
+                        size: 14
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function (tooltipItems) {
+                            const index = tooltipItems[0].dataIndex;
+                            return tooltipItems[0].chart.data.labels[index]; // Tam etiketi göster
+                        }
+                    }
                 }
             },
             scales: {
@@ -374,25 +456,32 @@ export const renderTop5SearchedTerms = (data, containerId) => {
                     title: {
                         display: true,
                         text: 'Arama Terimi'
+                    },
+                    ticks: {
+                        callback: function (value, index, ticks) {
+                            const label = this.getLabelForValue(value);
+                            return label.length > 15 ? label.slice(0, 12) + '...' : label;
+                        },
+                        maxRotation: 30,
+                        minRotation: 0
                     }
                 },
                 y: {
+                    beginAtZero: true,
                     title: {
                         display: true,
                         text: 'Toplam Seçim Sayısı'
-                    },
-                    beginAtZero: true
+                    }
                 }
             },
             interaction: {
-                mode: 'index',  // Kullanıcı etkileşimini daha basit tutuyoruz
+                mode: 'index',
                 intersect: false
             }
         },
-        plugins: [ChartDataLabels] // Plugin'i aktif ediyoruz
+        plugins: [ChartDataLabels]
     });
 };
-
 
 export const renderTouchedEvents = (data, containerId) => {
     const table = document.createElement('table');
@@ -545,11 +634,15 @@ export const renderHourlyEvents = (hourlyVisits, containerId) => {
     });
 };
 
+
+
 export const renderOperatingSystemDistribution = (data, containerId) => {
     const labels = data.map(item => item.osFamily);
     const values = data.map(item => item.visits);
 
-    const backgroundColors = labels.map((_, i) => `hsl(${(i * 360 / labels.length)}, 70%, 60%)`);
+    const backgroundColors = generatePastelColorScale(labels.length);
+
+    const total = values.reduce((a, b) => a + b, 0);
 
     const datasets = [{
         label: 'İşletim Sistemi Dağılımı',
@@ -571,13 +664,34 @@ export const renderOperatingSystemDistribution = (data, containerId) => {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 title: {
                     display: true,
                     text: 'İşletim Sistemi Dağılımı'
                 },
                 legend: {
-                    position: 'right'
+                    position: 'bottom',
+                    labels: {
+                        generateLabels: function (chart) {
+                            const data = chart.data;
+                            const dataset = data.datasets[0];
+
+                            return data.labels.map((label, i) => {
+                                const value = dataset.data[i];
+                                const percentage = ((value / total) * 100).toFixed(1);
+
+                                return {
+                                    text: `${label} (%${percentage})`,
+                                    fillStyle: dataset.backgroundColor[i],
+                                    strokeStyle: dataset.backgroundColor[i],
+                                    lineWidth: 1,
+                                    hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
+                                    index: i
+                                };
+                            });
+                        }
+                    }
                 },
                 datalabels: {
                     color: '#fff',
@@ -596,14 +710,13 @@ export const renderOperatingSystemDistribution = (data, containerId) => {
         plugins: [ChartDataLabels]
     });
 };
-
 let others = [];
 
 export const renderLanguageDistribution = (data, containerId) => {
     const sortedEntries = Object.entries(data).sort((a, b) => b[1] - a[1]);
 
     const top5 = sortedEntries.slice(0, 5);
-    others = sortedEntries.slice(5); // Global değişken
+    const others = sortedEntries.slice(5); // Local değişken
 
     const labels = top5.map(([language]) => language.split(' (')[0]);
     const values = top5.map(([, value]) => value);
@@ -614,7 +727,8 @@ export const renderLanguageDistribution = (data, containerId) => {
         values.push(otherTotal);
     }
 
-    const backgroundColors = labels.map((_, i) => `hsl(${(i * 360 / labels.length)}, 70%, 60%)`);
+    const backgroundColors = generatePastelColorScale(labels.length);
+    const total = values.reduce((a, b) => a + b, 0);
 
     const datasets = [{
         label: 'Dil Dağılımı',
@@ -636,13 +750,34 @@ export const renderLanguageDistribution = (data, containerId) => {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 title: {
                     display: true,
                     text: 'Dil Dağılımı (Top 5 + Diğer)'
                 },
                 legend: {
-                    position: 'right'
+                    position: 'bottom',
+                    labels: {
+                        generateLabels: function (chart) {
+                            const data = chart.data;
+                            const dataset = data.datasets[0];
+
+                            return data.labels.map((label, i) => {
+                                const value = dataset.data[i];
+                                const percentage = ((value / total) * 100).toFixed(1);
+
+                                return {
+                                    text: `${label} (%${percentage})`,
+                                    fillStyle: dataset.backgroundColor[i],
+                                    strokeStyle: dataset.backgroundColor[i],
+                                    lineWidth: 1,
+                                    hidden: isNaN(value) || chart.getDatasetMeta(0).data[i].hidden,
+                                    index: i
+                                };
+                            });
+                        }
+                    }
                 },
                 tooltip: {
                     callbacks: {
@@ -740,23 +875,39 @@ export async function summarizeTitlesWithDetails(titleCountMap, jsonFilePath, to
         console.log("✅ JSON verisi başarıyla alındı:", jsonData);
 
         const result = [];
+        const highlighted = []; // 🔸 Stand,Premium olanlar burada toplanacak
 
         Object.entries(titleCountMap).forEach(([title, count]) => {
             const matched = jsonData.find(item => item.Title === title);
 
             if (matched) {
-                result.push({
+                const category = matched.Cat_TR || "Kategori Yok";
+                const description = matched.Description || "Açıklama Yok";
+
+                const entry = {
                     Title: matched.Title,
                     Count: count,
-                    Cat_TR: matched.Cat_TR || "Kategori Yok",
-                    Description: matched.Description || "Açıklama Yok"
-                });
+                    Cat_TR: category,
+                    Description: description
+                };
 
-                console.log(`✅ "${matched.Title}" (${count} kez) → Kategori: ${matched.Cat_TR}, Açıklama: ${matched.Description}`);
+                result.push(entry);
+
+                console.log(`✅ "${matched.Title}" (${count} kez) → Kategori: ${category}, Açıklama: ${description}`);
+
+                // Kategori tam olarak "Stand,Premium" ise localStorage için ekle
+                if (category === "Stand,Premium") {
+                    console.log(`⭐️ ${matched.Title} → Öne Çıkan Kategori: ${category}`);
+                    highlighted.push(entry);
+                }
             } else {
                 console.warn(`⚠️ "${title}" başlığı JSON içinde bulunamadı!`);
             }
         });
+
+        // 💾 Stand,Premium olanları localStorage'a kaydet
+        localStorage.setItem("highlightedEntries", JSON.stringify(highlighted));
+        console.log("💾 Stand,Premium olanlar localStorage'a kaydedildi:", highlighted);
 
         console.log("📊 Özetlenen Başlıklar:", result);
         return result;
@@ -765,7 +916,6 @@ export async function summarizeTitlesWithDetails(titleCountMap, jsonFilePath, to
         return [];
     }
 }
-
 
 export async function summarizeTopStoresByCategory(titleEventsMap, jsonFilePath) {
     try {
@@ -781,7 +931,7 @@ export async function summarizeTopStoresByCategory(titleEventsMap, jsonFilePath)
         const categoriesToInclude = [
             "Giyim", "Ayakkabı & Çanta", "Aksesuar & Mücevher", "Elektronik", "Çocuk",
             "Kozmetik & Sağlık", "Ev & Dekorasyon", "Lokum & Şekerleme", "Spor",
-            "Market", "Kültür & Eğlence","Stand",
+            "Market", "Kültür & Eğlence", "Stand", "Stand,Premium", "Sahne"
         ];
 
         const filteredResults = [];
@@ -831,7 +981,7 @@ export async function categorizeEventsByDayAndCategory(dailyData, jsonFilePath) 
         const categoriesToInclude = [
             "Giyim", "Ayakkabı & Çanta", "Aksesuar & Mücevher", "Elektronik", "Çocuk",
             "Kozmetik & Sağlık", "Ev & Dekorasyon", "Lokum & Şekerleme", "Spor",
-            "Market", "Kültür & Eğlence","Hizmet", "Otopark", "Stand", "Wc", "Yiyecek"
+            "Market", "Kültür & Eğlence", "Hizmet", "Otopark", "Stand", "Wc", "Yiyecek"
         ];
 
         // Günlük verileri tutacak nesne
@@ -948,9 +1098,7 @@ export async function summarizeTopServicesByCategory(titlesWithCounts, jsonFileP
         const jsonData = await response.json();
         console.log("✅ JSON verisi başarıyla alındı:", jsonData);
 
-        // Başlık sayacı: titlesWithCounts içindeki aynı başlıkları toplamak için
         const combinedTitles = titlesWithCounts.reduce((accumulator, currentItem) => {
-            // Eğer title zaten accumulator içinde varsa, nbEvents'ini arttır
             if (accumulator[currentItem.eventName]) {
                 accumulator[currentItem.eventName] += currentItem.nbEvents;
             } else {
@@ -959,14 +1107,12 @@ export async function summarizeTopServicesByCategory(titlesWithCounts, jsonFileP
             return accumulator;
         }, {});
 
-        // Toplanan etkinliklerin toplam sayısını görmek için
-        console.log("Toplanan etkinlikler:", combinedTitles);
+        console.log("servis Toplanan etkinlikler:", combinedTitles);
 
-        // JSON'dan filtrelenen sonuçları bul
         const categoriesToInclude = [
             "Hizmetler",
             "Hizmet Mağazaları",
-            "Hizmet", 
+            "Hizmet",
             "Otopark",
             "Wc",
         ];
@@ -983,19 +1129,56 @@ export async function summarizeTopServicesByCategory(titlesWithCounts, jsonFileP
                     Cat_TR: matched.Cat_TR,
                     Description: matched.Description || "Açıklama Yok"
                 });
-
-
-            } else {
-
             }
         });
 
-        // Kategorilere göre en yüksek 10 birimi al
-        const topResults = filteredResults
-            .sort((a, b) => b.Count - a.Count)  // Sayıya göre azalan sırala
-            .slice(0, 10);  // İlk 10 elemanı al
+        let topResults = filteredResults
+            .sort((a, b) => b.Count - a.Count)
+            .slice(0, 10);
 
-        console.log("📊 En Yüksek 10 Başlık:", topResults);
+        // Özel durum: "Car Park (Hall 7-8)" -> "Otopark (Hall 7-8)"
+        const carParkIndex = topResults.findIndex(item => item.Title === "Car Park (Hall 7-8)");
+        const otoparkIndex = topResults.findIndex(item => item.Title === "Otopark (Hall 7-8)");
+
+        if (carParkIndex !== -1) {
+            const carParkItem = topResults[carParkIndex];
+
+            if (otoparkIndex !== -1) {
+                topResults[otoparkIndex].Count += carParkItem.Count;
+            } else {
+                topResults.push({
+                    ...carParkItem,
+                    Title: "Otopark (Hall 7-8)",
+                    Cat_TR: "Otopark"
+                });
+            }
+
+            topResults.splice(carParkIndex, 1);
+        }
+
+        // İsim düzeltmeleri: İngilizce kısımları çıkar
+        topResults = topResults.map(item => {
+            if (item.Title === "Mescid - Masjid") {
+                return { ...item, Title: "Mescid" };
+            }
+            if (item.Title === "Kaynak Uygulama Özel Alanı - Welding Application Special Area") {
+                return { ...item, Title: "Kaynak Uygulama Özel Alanı" };
+            }
+            if (item.Title === "Medya Köşesi - Media Corner") {
+                return { ...item, Title: "Medya Köşesi" };
+            }
+            if (item.Title === "Hidrojen ve Yakıt Hücreleri Özel Alanı - Hydrogen and Fuel Cells Special Area") {
+                return { ...item, Title: "Hidrojen ve Yakıt Hücreleri Özel Alanı" };
+            }
+            return item;
+        });
+
+        // Tekrar sıralama
+        topResults = topResults
+            .sort((a, b) => b.Count - a.Count)
+            .slice(0, 10);
+
+        console.log("📊 En Yüksek 10 servis (düzenlenmiş):", topResults);
         return topResults;
 
     } catch (error) {
@@ -1206,7 +1389,9 @@ export const renderStoreCategoriesDonutChart = (data, containerId) => {
     // Grafikte kullanılacak veriyi oluştur
     const labels = Object.keys(updatedCategoryMap);
     const dataValues = Object.values(updatedCategoryMap);
-    const backgroundColors = labels.map((_, i) => `hsl(${(i * 60) % 360}, 70%, 60%)`);
+
+    // Pastel renklerini generatePastelColorScale ile al
+    const backgroundColors = generatePastelColorScale(labels.length);
 
     const datasets = [{
         data: dataValues,
@@ -1257,7 +1442,6 @@ export const renderStoreCategoriesDonutChart = (data, containerId) => {
         plugins: [ChartDataLabels]
     });
 };
-
 export const renderStoreCategoriesAreaChart = (data, containerId) => {
     const container = document.getElementById(containerId);
     container.innerHTML = ''; // Var olan grafiği temizle
@@ -1282,6 +1466,9 @@ export const renderStoreCategoriesAreaChart = (data, containerId) => {
     // Tüm tarihleri sırala
     const sortedDates = Array.from(dateSet).sort();
 
+    // Pastel renkleri generatePastelColorScale ile al
+    const backgroundColors = generatePastelColorScale(Object.keys(categoryDateMap).length);
+
     // Datasetleri hazırla
     const datasets = Object.keys(categoryDateMap).map((category, i) => {
         const dataPoints = sortedDates.map(date => categoryDateMap[category][date] || 0);
@@ -1289,8 +1476,8 @@ export const renderStoreCategoriesAreaChart = (data, containerId) => {
             label: category,
             data: dataPoints,
             fill: true,
-            backgroundColor: `hsla(${(i * 60) % 360}, 70%, 60%, 0.4)`,  // Kategorilere göre renk
-            borderColor: `hsl(${(i * 60) % 360}, 70%, 40%)`,  // Kategorilere göre renk
+            backgroundColor: backgroundColors[i],  // Pastel rengini burada kullanıyoruz
+            borderColor: backgroundColors[i],     // Border rengi olarak da aynı pastel rengini kullanıyoruz
             tension: 0.3
         };
     });
@@ -1517,7 +1704,7 @@ export const renderServicesTable = (data, containerId, totalEvents) => {
 
     // Her bir başlık için etkinlik sayısını yazdır
     data.forEach(item => {
-        console.log(`${item.Title}: ${item.Count} etkinlik`); // Count kullanıyoruz
+        console.log(`${item.Title}: ${item.Count} etkinlik service`); // Count kullanıyoruz
     });
 
     // Veriyi en çok etkinlik sayısına göre sırala
@@ -1545,8 +1732,10 @@ export const renderServicesTable = (data, containerId, totalEvents) => {
     top10.forEach((item, index) => {
         const row = document.createElement('tr');
 
-        // Yüzdeyi toplam etkinlik sayısına göre güvenli bir şekilde hesapla
-        const percent = totalEvents > 0 ? ((item.Count / totalEvents) * 100).toFixed(1) + '%' : '0%'; // Count ile yüzdelik hesaplama
+        // Her zaman bir üste yuvarlanmış yüzdeyi hesapla
+        const rawPercent = (item.Count / totalEvents) * 100;
+        const roundedPercent = Math.ceil(rawPercent * 10) / 10;
+        const percent = totalEvents > 0 ? `${roundedPercent.toFixed(1)}%` : '0%';
 
         // Verileri tablo satırına ekle
         [index + 1, item.Title, item.Cat_TR, percent].forEach(val => {

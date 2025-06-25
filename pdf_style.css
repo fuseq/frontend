@@ -200,11 +200,32 @@ header {
     flex-direction: column;
 }
 
-#donut-container,
-#operating-systems,
-#language-distribution {
+@media print {
+    .flag-icon {
+        display: inline-block !important;
+        -webkit-print-color-adjust: exact;
+        /* Chrome, Safari */
+        color-adjust: exact;
+        /* Firefox */
+        background-size: contain !important;
+        background-repeat: no-repeat !important;
+        width: 1.33333333em;
+        height: 1em;
+        line-height: 1em;
+        vertical-align: middle;
+    }
+}
+
+#donut-container {
     width: 60%;
     margin: 0 auto;
+}
+
+#operating-systems, #language-distribution {
+  width: 80%;
+  max-width: 500px;
+  height: 500px;
+  margin: 0 auto; /* Yatayda ortalamak için auto kullanıyoruz */
 }
 
 .header-title {
@@ -240,11 +261,13 @@ header {
     flex-direction: column;
     margin-left: 50px;
 }
+
 .date-info {
     font-size: 16px;
     color: #555;
     margin-top: 10px;
-  }
+}
+
 .filigran {
     position: absolute;
     bottom: 50px;

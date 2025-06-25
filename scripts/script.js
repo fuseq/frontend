@@ -260,6 +260,7 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
             localStorage.setItem('fromTo', data.fromTo);
             localStorage.setItem('searched', data.searched);
             localStorage.setItem('touched', data.touched);
+            localStorage.setItem('initialized', data.initialized);
             localStorage.setItem('total', data.total);
 
             // Veriyi render et
@@ -277,7 +278,19 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
 
             try {
                 const data = JSON.parse(text);
-                renderLanguageDistribution(data, 'language-distribution');
+
+                // Sort the data by value in descending order
+                const sortedData = Object.entries(data)
+                    .sort(([, a], [, b]) => b - a)  // Sorting by value (descending)
+
+
+                // Create an object with the top 5 data, including language counts
+                const topLanguages = Object.fromEntries(sortedData);
+
+                // Store it in localStorage with both the language and count
+                localStorage.setItem('topLanguages', JSON.stringify(topLanguages));
+
+                renderLanguageDistribution(topLanguages, 'language-distribution');
             } catch (err) {
                 console.error("JSON parse hatası:", err);
             }
@@ -517,34 +530,26 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
 
     fetch(`http://localhost:3001/api/events/searched${params}`)
         .then(response => {
-            if (!response.ok) { // İyi bir pratik: ilk fetch hatalarını kontrol edin
+            if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(async searchedData => {
-            const titleEventsMap = {}; // Sadece 'searched' verisinden gelen başlık ve sayıları
-            // let totalEvents = 0; // Sadece 'searched' toplamı, artık birleşmiş toplamı kullanıyoruz
+            const titleEventsMap = {};
 
             // Searched verisini işle
             searchedData.forEach(item => {
                 const labelParts = item.label.split('->');
                 if (labelParts.length > 1) {
                     const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events || 0; // item'ın kendi nb_events'ini kullan
-
+                    const nbEvents = item.nb_events || 0;
                     titleEventsMap[eventName] = (titleEventsMap[eventName] || 0) + nbEvents;
-                    // totalEvents += nbEvents;
                 }
             });
 
             console.log("Title Event Map (Searched):", titleEventsMap);
-            // console.log("Total Events (Searched):", totalEvents);
 
-
-            // --- Mevcut Kod (Opsiyonel): Sadece searched verisinden en çok aranan tek birimi bulup kaydetme ---
-            // Eğer sadece searched verisinden en çok arananı ayrıca kaydetmeye devam etmek isterseniz bu kısmı tutun.
-            // Yeni gereksinim birleşmiş veriden en çok aranan 3'ü bulmak.
             const entries = Object.entries(titleEventsMap);
             if (entries.length > 0) {
                 const [mostSearchedUnit, maxCount] = entries.reduce((maxEntry, currentEntry) =>
@@ -562,121 +567,141 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
                 localStorage.removeItem("mostSearchedUnit");
                 console.log("No searched data to determine most searched unit.");
             }
-            // --- Mevcut Kod Sonu ---
 
-
-            // Touched verisini al
+            // touched verisini al
             const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
-            if (!touchedResponse.ok) { // İkinci fetch hatalarını kontrol edin
+            if (!touchedResponse.ok) {
                 throw new Error(`HTTP error! status: ${touchedResponse.status}`);
             }
-            const touchedData = await touchedResponse.json(); // touchedData'nın { title: count, ... } formatında geldiğini varsayıyoruz
+            const touchedData = await touchedResponse.json();
 
-            const mergedMap = {}; // Birleşmiş başlık ve sayıları
+            // initialized verisini al
+            const initializedResponse = await fetch(`http://localhost:3001/api/events/initialized${params}`);
+            if (!initializedResponse.ok) {
+                throw new Error(`HTTP error! status: ${initializedResponse.status}`);
+            }
+            const initializedData = await initializedResponse.json();
 
-            // Searched sayılarını mergedMap'e ekle
-            for (const [title, count] of Object.entries(titleEventsMap)) {
-                mergedMap[title] = count;
+            // Verileri birleştir
+            const mergedMap = { ...titleEventsMap };
+
+            for (const [title, count] of Object.entries(touchedData)) {
+                mergedMap[title] = (mergedMap[title] || 0) + count;
             }
 
-            // Touched sayılarını mergedMap'e ekle (birleştir)
-            for (const [title, count] of Object.entries(touchedData)) {
-                if (mergedMap[title]) {
-                    mergedMap[title] += count; // Eğer başlık varsa, touched sayısını üzerine ekle
-                } else {
-                    mergedMap[title] = count; // Eğer başlık yoksa, touched sayısıyla yeni giriş oluştur
-                }
+            for (const [title, count] of Object.entries(initializedData)) {
+                mergedMap[title] = (mergedMap[title] || 0) + count;
             }
 
             console.log("Birleşmiş Veri (Başlık -> Toplam Sayı):", mergedMap);
 
-            // Birleşmiş veriden toplam etkinik sayısını hesapla
             const combinedTotalEvents = Object.values(mergedMap).reduce((sum, count) => sum + count, 0);
-            console.log("Birleşmiş Toplam Etkinlik Sayısı (Searched + Touched):", combinedTotalEvents);
+            console.log("Birleşmiş Toplam Etkinlik Sayısı (Searched + Touched + Initialized):", combinedTotalEvents);
 
-
-            // --- Yeni Kısım: Birleşmiş Veriden En Çok Kullanılan 3 Birimi Bul ---
-
-            // mergedMap'teki veriyi sıralanabilir bir diziye dönüştür
             const sortedMergedUnits = Object.keys(mergedMap)
-                .map(unit => ({ unit: unit, count: mergedMap[unit] })) // { unit: "Birim Adı", count: 25 } formatına çevir
-                .sort((a, b) => b.count - a.count); // Kullanım sayısına göre azalan sırada sırala
+                .map(unit => ({ unit: unit, count: mergedMap[unit] }))
+                .sort((a, b) => b.count - a.count);
 
-            // En üstteki 3 birimi al
-            const top3CombinedUnits = sortedMergedUnits.slice(0, 3);
+            // Kategori verisini hazırla ve tabloyu render et
+            const categoryData = await summarizeTitlesWithDetails(
+                mergedMap,
+                `./assets/${globalSiteId}.json`,
+                combinedTotalEvents
+            );
 
-            console.log("En Çok Kullanılan 3 Birim (Toplamdan):", top3CombinedUnits);
-
-            // --- localStorage'a Kaydetme: En Çok Kullanılan 3 Birim (Toplamdan) ---
-            // localStorage sadece string saklar, bu yüzden diziyi JSON stringine çevirin
-            if (top3CombinedUnits.length > 0) { // Kaydedilecek bir birim olup olmadığını kontrol et
-                localStorage.setItem('top3CombinedUnits', JSON.stringify(top3CombinedUnits));
-                console.log('En çok kullanılan 3 birim (toplamdan) localStoragea kaydedildi.');
-            } else {
-                // localStorage.removeItem('top3CombinedUnits'); // İsteğe bağlı: Veri yoksa temizle
-                console.warn('Kaydedilecek en çok kullanılan 3 birim (toplamdan) bulunamadı.');
-            }
-            // --- Yeni Kısım Sonu ---
-
-
-            // Kategorize etme ve Render etme (birleşmiş veriyi summarizeTitlesWithDetails'a göndererek)
-            // summarizeTitlesWithDetails fonksiyonunun mergedMap objesini beklediğini varsayıyoruz
-            const categoryData = await summarizeTitlesWithDetails(mergedMap, `./assets/${globalSiteId}.json`, combinedTotalEvents);
             renderTopUnitsTable(categoryData, "top-units-table-container", combinedTotalEvents);
-
-            // Diğer render işlemleri (categoryData veya searchedData'yı kullanarak)
-            // renderSearchedEvents(searchedData, 'searched-events'); // Eğer gerekli ise
-            // renderStoreCategoriesDonutChart(categoryData, "donut-container"); // Eğer kategori donut chartı gerekli ise
-
         })
         .catch(error => {
             console.error("Hata oluştu:", error);
-            // Hata yönetimi: Kullanıcıya bilgi ver, UI'ı güncelle, localStorage'ı temizle
-            // localStorage.removeItem("mostSearchedUnit"); // Eğer kullanılıyorsa
-            // localStorage.removeItem("top3CombinedUnits");
+            localStorage.removeItem("mostSearchedUnit");
         });
 
 
     fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(async searchedData => {
             const titleEventsMap = {}; // { 'storeName': toplamEventSayısı }
             let totalEvents = 0;
 
-            // Searched verisini işle
+            // Process searched data
             searchedData.forEach(item => {
                 const labelParts = item.label.split('->');
                 if (labelParts.length > 1) {
                     const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events;
-
+                    const nbEvents = item.nb_events || 0;
                     titleEventsMap[eventName] = (titleEventsMap[eventName] || 0) + nbEvents;
                     totalEvents += nbEvents;
                 }
             });
 
-            // Touched verisini al
+            // Fetch touched data
             const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
+            if (!touchedResponse.ok) {
+                throw new Error(`HTTP error! status: ${touchedResponse.status}`);
+            }
             const touchedData = await touchedResponse.json();
 
-            // Touched verisini titleEventsMap'e ekle
+            // Add touched data to titleEventsMap
             for (const [title, count] of Object.entries(touchedData)) {
                 titleEventsMap[title] = (titleEventsMap[title] || 0) + count;
                 totalEvents += count;
             }
 
-            console.log("Store-Toplam Etkinlik Sayısı (Searched + Touched):", totalEvents);
+            // Fetch initialized data
+            const initializedResponse = await fetch(`http://localhost:3001/api/events/initialized${params}`);
+            if (!initializedResponse.ok) {
+                throw new Error(`HTTP error! status: ${initializedResponse.status}`);
+            }
+            const initializedData = await initializedResponse.json();
+
+            // Add initialized data to titleEventsMap
+            for (const [title, count] of Object.entries(initializedData)) {
+                titleEventsMap[title] = (titleEventsMap[title] || 0) + count;
+                totalEvents += count;
+            }
+
+            console.log("Store-Toplam Etkinlik Sayısı (Searched + Touched + Initialized):", totalEvents);
             console.log("Birleştirilmiş titleEventsMap:", titleEventsMap);
 
-            // Yeni yapıya uygun çağrı
+            // Kategorilere göre özetle
             const categoryData = await summarizeTopStoresByCategory(titleEventsMap, `./assets/${globalSiteId}.json`, totalEvents);
             console.log("cat-data", categoryData);
+
+            // --- Extracting and saving top 3 units from categoryData ---
+            if (categoryData && Array.isArray(categoryData)) {
+                const top3CombinedUnits = categoryData
+                    .map(item => ({
+                        unit: item.Title || 'Bilinmeyen Birim',
+                        count: item.Count || 0
+                    }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 3);
+
+                if (top3CombinedUnits.length > 0) {
+                    localStorage.setItem('top3CombinedUnits', JSON.stringify(top3CombinedUnits));
+                    console.log('En çok kullanılan 3 birim (categoryData\'dan) localStoragea kaydedildi:', top3CombinedUnits);
+                } else {
+                    localStorage.removeItem("top3CombinedUnits");
+                    console.warn('Kaydedilecek en çok kullanılan 3 birim (categoryData\'dan) bulunamadı.');
+                }
+            } else {
+                localStorage.removeItem("top3CombinedUnits");
+                console.warn('categoryData boş, tanımsız veya beklenen dizi formatında değil.');
+            }
+            // --- End of extracting and saving top 3 units ---
 
             renderTopStoresTable(categoryData, 'top-stores-container', totalEvents);
         })
         .catch(error => {
             console.error("Hata oluştu:", error);
+            localStorage.removeItem("top3CombinedUnits"); // Clear localStorage on error
         });
+
 
     fetch(`http://localhost:3001/api/events/searched${params}`)
         .then(response => response.json())
@@ -709,13 +734,24 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
                 totalEvents += count;
             }
 
+            // Initialized verisini al
+            const initializedResponse = await fetch(`http://localhost:3001/api/events/initialized${params}`);
+            const initializedData = await initializedResponse.json();
+            console.log("Gelen event verileri (initialized):", initializedData);
+
+            // Initialized verisini işle
+            for (const [eventName, count] of Object.entries(initializedData)) {
+                titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + count;
+                totalEvents += count;
+            }
+
             // titleEventCountMap’i titlesWithCounts formatına çevir
             const titlesWithCounts = Object.entries(titleEventCountMap).map(([eventName, nbEvents]) => ({
                 eventName,
                 nbEvents
             }));
 
-            console.log("Toplam Etkinlik Sayısı (Searched + Touched):", totalEvents);
+            console.log("Toplam Etkinlik Sayısı (Searched + Touched + Initialized):", totalEvents);
             console.log("titlesWithCounts:", titlesWithCounts);
 
             // Kategorize etme işlemi
@@ -770,25 +806,35 @@ function fetchAllData(startDate, endDate, siteId = globalSiteId) {
                 totalEvents += count;
             }
 
+            // Initialized verisini al
+            const initializedResponse = await fetch(`http://localhost:3001/api/events/initialized${params}`);
+            const initializedData = await initializedResponse.json();
+            console.log("Gelen event verileri (initialized):", initializedData);
+
+            // Initialized verisini işle
+            for (const [eventName, count] of Object.entries(initializedData)) {
+                titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + count;
+                totalEvents += count;
+            }
+
             // titleEventCountMap’i titlesWithCounts formatına çevir
             const titlesWithCounts = Object.entries(titleEventCountMap).map(([eventName, nbEvents]) => ({
                 eventName,
                 nbEvents
             }));
 
-            console.log("Toplam Etkinlik Sayısı (Searched + Touched):", totalEvents);
-            console.log("titlesWithCounts:", titlesWithCounts);
+            console.log("Toplam Etkinlik Sayısı (Searched + Touched + Initialized):", totalEvents);
+            console.log("titlesWithCounts-service:", titlesWithCounts);
 
             // Kategorize etme işlemi
             const categoryData = await summarizeTopServicesByCategory(titlesWithCounts, `./assets/${globalSiteId}.json`, totalEvents);
-            console.log("cat-data", categoryData);
+            console.log("cat-data-services", categoryData);
 
             renderServicesTable(categoryData, 'services-container', totalEvents);
         })
         .catch(error => {
             console.error("Hata oluştu:", error);
         });
-
 
 
 
@@ -998,35 +1044,34 @@ function renderStatistics(data) {
     const avgTime = document.getElementById('avg-time');
 
     totalVisits.innerHTML = `
-        <div class="card text-white bg-primary mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Toplam Ziyaret</h5>
-                <p class="card-text">${data.totalVisits}</p>
-            </div>
+    <div class="card text-white mb-3" style="background-color: #8ac9c9; mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Toplam Ziyaret</h5>
+            <p class="card-text">${data.totalVisits}</p>
         </div>
-    `;
-
-
+    </div>
+`;
 
     mostVisitedDevice.innerHTML = `
-        <div class="card text-white bg-info mb-3">
-            <div class="card-body">
-                <h5 class="card-title">En Çok Kullanılan Cihaz</h5>
-                <p class="card-text">${deviceMap[data.mostVisitedDeviceType?.toLowerCase()] || data.mostVisitedDeviceType}</p>
-            </div>
+    <div class="card text-white mb-3" style="background-color: #e0b8b8; mb-3">
+        <div class="card-body">
+            <h5 class="card-title">En Çok Kullanılan Cihaz</h5>
+            <p class="card-text">${deviceMap[data.mostVisitedDeviceType?.toLowerCase()] || data.mostVisitedDeviceType}</p>
         </div>
-    `;
+    </div>
+`;
 
     avgTime.innerHTML = `
-        <div class="card text-white bg-warning mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Sayfada Ortalama Kalma Süresi</h5>
-                <p class="card-text">${data.avgTimeOnPage} saniye</p>
-            </div>
+    <div class="card text-white mb-3" style="background-color: #c6b4d7; mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Sayfada Ortalama Kalma Süresi</h5>
+            <p class="card-text">${data.avgTimeOnPage} saniye</p>
         </div>
-    `;
+    </div>
+`;
+
     bounceRate.innerHTML = `
-    <div class="card text-white bg-success mb-3">
+    <div class="card text-white mb-3" style="background-color: #8396d0; mb-3">
         <div class="card-body">
             <h5 class="card-title">Ziyaretçi İlgisi</h5>
             <p class="card-text">
@@ -1056,9 +1101,9 @@ function populateSummaryData() {
     const fromTo = parseInt(localStorage.getItem("fromTo") || "0");
     const searched = parseInt(localStorage.getItem("searched") || "0");
     const touched = parseInt(localStorage.getItem("touched") || "0");
-
+    const initialized = parseInt(localStorage.getItem("initialized") || "0");
     // Toplam kullanım sayısını hesapla
-    const total = fromTo + searched + touched;
+    const total = fromTo + searched + touched + initialized;
     let date = ""; // Burada let kullanıyoruz çünkü sonrasında değiştireceğiz
     const selectedRange = localStorage.getItem("selectedRange");
     const startDateStr = localStorage.getItem("startDate");
@@ -1133,15 +1178,17 @@ function populateSummaryData() {
     const summary14Element = document.getElementById("summary-14");
     const summary15Element = document.getElementById("summary-15");
     const summary16Element = document.getElementById("summary-16");
+    const summary17Element = document.getElementById("summary-17");
+    const summary18Element = document.getElementById("summary-18");
 
     if (summary1Element && summary2Element) {
         // İlk özet cümlesini güncelle
-        summary1Element.innerHTML = `${date}  toplam <strong>${total.toLocaleString("tr-TR")}</strong> kez kullanım (arama, tıklama, rota çizdirme) yapılmıştır.`;
+        summary1Element.innerHTML = `${date}  toplam <strong>${total.toLocaleString("tr-TR")}</strong> kez kullanım (arama, tıklama, rota çizdirme, öntanımlı seçim) yapılmıştır.`;
 
         // İkinci özet cümlesini güncelle
-        summary2Element.innerHTML = `Kullanım Sayıları <strong>${fromTo.toLocaleString("tr-TR")}</strong> rota çizdirme, <strong>${searched.toLocaleString("tr-TR")}</strong> arama ve <strong>${touched.toLocaleString("tr-TR")}</strong> tıklama olarak dağılım göstermiştir.`;
+        summary2Element.innerHTML = `Kullanım sayıları <strong>${fromTo.toLocaleString("tr-TR")}</strong> rota çizdirme, <strong>${searched.toLocaleString("tr-TR")}</strong> arama, <strong>${touched.toLocaleString("tr-TR")}</strong> tıklama ve <strong>${initialized.toLocaleString("tr-TR")}</strong> öntanımlı seçim olarak dağılım göstermiştir.`;
 
-        // Üçüncü özet cümlesini güncelle
+        // Üçüncü özet cümlesini temizle
         if (summary3Element) {
             summary3Element.textContent = '';
         }
@@ -1198,7 +1245,7 @@ function populateSummaryData() {
     summary7Element.textContent = "";
 
     if (mostVisitedDeviceType) {
-        summary7Element.innerHTML = `Kullanıcılar en çok <strong>${mostVisitedDeviceType.toLowerCase()}</strong> bir cihaz ile sistemi ziyaret etmiştir.`;
+        summary7Element.innerHTML = `Kullanıcılar en çok <strong>${mostVisitedDeviceType.toLowerCase()}</strong> kullanarak sistemi ziyaret etmiştir.`;
     }
 
     // 8. özet: Toplam ziyaret sayısı
@@ -1214,9 +1261,9 @@ function populateSummaryData() {
 
     if (bounceRate) {
         const rate = parseFloat(bounceRate);
-        const description = `Ziyaretçilerin %${100 - rate} kadarı içeriklerle ilgilenmiş, sitede vakit geçirmiş ve tekrar ziyaret etmiştir.`;
+        const description = `Ziyaretçilerin <strong>%${100 - rate}</strong> kadarı içeriklerle ilgilenmiş, sitede vakit geçirmiş ve tekrar ziyaret etmiştir.`;
 
-        summary9Element.textContent = `${description}`;
+        summary9Element.innerHTML = description;
     }
 
     // 10. özet: Ortalama sayfada kalma süresi
@@ -1311,20 +1358,143 @@ function populateSummaryData() {
     }
 
     const top3CombinedUnits = JSON.parse(localStorage.getItem("top3CombinedUnits"));
-    summary16Element.textContent = ""; // Önce içeriği temizle
 
-    if (top3CombinedUnits && Array.isArray(top3CombinedUnits)) {
-        const sentence = top3CombinedUnits
-            .map((item, index) => `<strong>${item.unit}</strong> (${item.count} kez)`)
-            .join(", ");
+    // summary16Element'in içeriğini temizle
+    summary16Element.textContent = "";
 
-        summary16Element.innerHTML = `Kullanıcılar arasında en çok ilgi gören ilk 3 birim sırasıyla: ${sentence}.`;
+    // top3CombinedUnits'in var olup olmadığını ve bir dizi olup olmadığını kontrol et
+    if (top3CombinedUnits && Array.isArray(top3CombinedUnits) && top3CombinedUnits.length > 0) {
+        // Dizideki her bir öğeyi alıp 'unit (count kez)' formatına dönüştürerek bir dizi oluştur
+        const formattedUnits = top3CombinedUnits.map((item, index) => {
+            // unit ve count değerlerinin string olduğundan emin ol, hata durumunda varsayılan değer kullan
+            const unitName = String(item.unit || 'Bilinmeyen Birim');
+            const count = String(item.count || 0);
+
+            return `<strong>${unitName}</strong> (${count} kez)`;
+        });
+
+        // Oluşturulan formatlı birimleri virgülle ayırarak birleştir ve cümleyi oluştur
+        const sentence = `Kullanıcılar arasında en çok ilgi gören ilk 3 birim sırasıyla: ${formattedUnits.join(", ")}.`;
+
+        // Oluşturulan cümleyi HTML elementine yazdır
+        summary16Element.innerHTML = sentence;
     } else {
+        // Veri yoksa veya uygun formatta değilse alternatif mesajı göster
         summary16Element.textContent = "Henüz bir kombinasyon verisi bulunmamaktadır.";
+    }
+
+    summary17Element.textContent = ""; // Önce içeriği temizle
+
+    const topLanguages = JSON.parse(localStorage.getItem('topLanguages'));
+
+    function normalizeLanguageKey(languageKey) {
+        const match = languageKey.match(/^(.+?) - (.+?) \((.+?)\)$/);
+        if (match) {
+            const base = match[1].trim();
+            const region = match[2].trim();
+            const code = match[3].trim();
+            return `${base} (${region}) (${code})`;
+        }
+        return languageKey;
+    }
+
+    // Dil kodları için base -> detaylı eşleme (örnek: en -> en-gb)
+    const languageRedirectMap = {
+        "en": "English - United Kingdom (en-gb)",
+        "de": "German - Germany (de-de)",
+        "es": "Spanish - Spain (es-es)",
+        "fr": "French - France (fr-fr)",
+        "hr": "Croatian - Croatia (hr-hr)",
+        "it": "Italian - Italy (it-it)",
+        "ms": "Malay - Malaysia (ms-my)",
+        "nl": "Dutch - Netherlands (nl-nl)",
+        "pt": "Portuguese - Portugal (pt-pt)",
+        "qu": "Quechua - Peru (qu-pe)",
+        "se": "Sami - Norway (se-no)",
+        "sr": "Serbian - Serbia (sr-rs)",
+        "sv": "Swedish - Sweden (sv-se)",
+        "zh": "Chinese - China (zh-cn)"
+    };
+
+    fetch('assets/languageFlags.json')
+        .then(response => response.json())
+        .then(languageFlags => {
+            if (topLanguages && Object.keys(topLanguages).length > 0) {
+
+                // Base dil kodlarını detaylı versiyona aktar
+                for (const baseCode in languageRedirectMap) {
+                    const baseLabel = Object.keys(topLanguages).find(key => key.endsWith(`(${baseCode})`));
+                    const detailedKey = languageRedirectMap[baseCode];
+
+                    if (baseLabel && baseLabel !== detailedKey) {
+                        const count = topLanguages[baseLabel] || 0;
+                        if (count > 0) {
+                            topLanguages[detailedKey] = (topLanguages[detailedKey] || 0) + count;
+                            delete topLanguages[baseLabel];
+                        }
+                    }
+                }
+
+                const top5Languages = Object.entries(topLanguages)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([language, count]) => {
+                        const normalizedKey = normalizeLanguageKey(language);
+                        const flagClass = languageFlags[normalizedKey] || "flag-icon";
+
+                        // Dil adını sadece isim ve ülke ile göster (kod kısmını çıkar)
+                        const displayName = language.replace(/\s*\(([^)]+)\)\s*$/, "").trim();
+
+                        return `<li><span class="flag-icon ${flagClass}"></span> <strong>${displayName}</strong> (${count} kez)</li>`;
+                    })
+                    .join("");
+
+                summary17Element.innerHTML = `
+                <p>Kullanıcıların ülkelere göre dağılımı (ilk 5) :</p>
+                <ul>${top5Languages}</ul>
+            `;
+            } else {
+                summary17Element.textContent = "Henüz bir dil verisi bulunmamaktadır.";
+            }
+        })
+        .catch(error => {
+            console.error("languageFlags.json yüklenirken hata oluştu:", error);
+            summary17Element.textContent = "Veri yüklenemedi.";
+        });
+
+    const highlightedEntries = JSON.parse(localStorage.getItem("highlightedEntries"));
+    summary18Element.textContent = ""; // Önce içeriği temizle
+
+    if (highlightedEntries && Array.isArray(highlightedEntries) && highlightedEntries.length > 0) {
+        // 🔢 Count'a göre azalan sırala ve ilk 5 elemanı al
+        const top5 = highlightedEntries
+            .sort((a, b) => b.Count - a.Count)
+            .slice(0, 5);
+
+        // 🔹 Liste HTML'si oluştur
+        const listItems = top5
+            .map(item => `<li><strong>${item.Title}</strong> (${item.Count} kez)</li>`)
+            .join("");
+
+        summary18Element.innerHTML = `
+        <p>Premium birimlerin işlem sayısı(ilk 5):</p>
+        <ul>${listItems}</ul>
+    `;
+    } else {
+        summary18Element.textContent = "Henüz Stand, Premium kategorisinde öne çıkan başlık bulunmamaktadır.";
     }
 }
 
-
+function normalizeLanguageKey(languageKey) {
+    const match = languageKey.match(/^(.+?) - (.+?) \((.+?)\)$/);
+    if (match) {
+        const base = match[1].trim();
+        const region = match[2].trim();
+        const code = match[3].trim();
+        return `${base} (${region}) (${code})`;
+    }
+    return languageKey; // Eşleşmezse orijinalini döndür
+}
 
 
 
