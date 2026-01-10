@@ -554,7 +554,7 @@
 
     async function loadAnnualSites() {
       try {
-        const response = await fetch('http://localhost:3001/api/sites');
+        const response = await fetch('https://matomo-analytics-backend.socket.com/api/sites');
         annualSitesData = await response.json();
         renderAnnualSiteCategories();
       } catch (error) {
