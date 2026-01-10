@@ -38,7 +38,7 @@ import {
 // =====================================================
 
 const CONFIG = {
-    API_BASE_URL: 'https://matomo-analytics-backend.socket.com/api',
+    API_BASE_URL: 'https://matomo-analytics-backend.isohtel.com.tr/api',
     DEBOUNCE_DELAY: 300,
     TOAST_DURATION: 4000,
     ANIMATION_DURATION: 300
