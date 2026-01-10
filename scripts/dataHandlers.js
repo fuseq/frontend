@@ -1,1863 +1,1671 @@
-// Ziyaretçi verisini çeker ve bar chart oluşturur
+/**
+ * Inmapper Analytics Dashboard - Data Handlers
+ * Modern chart rendering with beautiful styling
+ */
 
-const generatePastelColorScale = (count) => {
-    const baseHueStart = 180;   // Başlangıç tonu (cyan-mavi)
-    const baseHueEnd = 360;     // Bitiş tonu (kırmızı-mor)
-    const saturation = 40;      // Daha yüksek doygunluk (Daha belirgin pastel)
-    const lightnessStart = 60;  // Başlangıçta daha koyu renkler
-    const lightnessEnd = 80;    // Bitiş noktasında daha açık ancak kontrastlı renkler
+// =====================================================
+// Chart Theme Configuration
+// =====================================================
 
-    return Array.from({ length: count }, (_, i) => {
-        const hue = baseHueStart + (baseHueEnd - baseHueStart) * (i / (count - 1)); // Tonu farklı yapıyoruz
-        const lightness = lightnessStart + ((lightnessEnd - lightnessStart) * (i / (count - 1))); // Açıklığı çeşitlendiriyoruz
-        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    });
+const CHART_THEME = {
+    // Color palette - Modern gradient colors
+    colors: {
+        primary: ['#8b5cf6', '#a78bfa', '#c4b5fd'],
+        secondary: ['#3b82f6', '#60a5fa', '#93c5fd'],
+        accent: ['#10b981', '#34d399', '#6ee7b7'],
+        warm: ['#f59e0b', '#fbbf24', '#fcd34d'],
+        cool: ['#06b6d4', '#22d3ee', '#67e8f9'],
+        pink: ['#ec4899', '#f472b6', '#f9a8d4']
+    },
+    
+    // Gradient generator
+    getGradient(ctx, colorStart, colorEnd) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, colorStart);
+        gradient.addColorStop(1, colorEnd);
+        return gradient;
+    },
+    
+    // Generate color palette for charts
+    generatePalette(count) {
+        const baseColors = [
+            '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899',
+            '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#14b8a6',
+            '#a855f7', '#0ea5e9', '#22c55e', '#eab308', '#f43f5e'
+        ];
+        
+        return Array.from({ length: count }, (_, i) => baseColors[i % baseColors.length]);
+    },
+    
+    // Pastel color generator
+    generatePastelColors(count) {
+        const hueStart = 240;
+        const hueEnd = 360;
+        return Array.from({ length: count }, (_, i) => {
+            const hue = hueStart + (hueEnd - hueStart) * (i / Math.max(count - 1, 1));
+            return `hsla(${hue}, 70%, 65%, 0.85)`;
+        });
+    }
 };
+
+// =====================================================
+// Chart.js Global Configuration
+// =====================================================
+
+// Theme detection helper
+function isDarkMode() {
+    return document.documentElement.getAttribute('data-theme') !== 'light';
+}
+
+function getChartColors() {
+    const dark = isDarkMode();
+    return {
+        text: dark ? 'rgba(255, 255, 255, 0.7)' : '#334155',
+        textPrimary: dark ? '#ffffff' : '#0f172a',
+        grid: dark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.08)',
+        tooltipBg: dark ? 'rgba(26, 26, 36, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+        tooltipText: dark ? '#ffffff' : '#0f172a',
+        tooltipBorder: dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        dataLabelColor: dark ? '#ffffff' : '#1e293b',
+        dataLabelShadow: dark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)'
+    };
+}
+
+// Apply chart defaults based on theme
+function applyChartDefaults() {
+    if (typeof Chart === 'undefined') return;
+    
+    const colors = getChartColors();
+    
+    Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+    Chart.defaults.color = colors.text;
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.padding = 20;
+    Chart.defaults.plugins.legend.labels.color = colors.text;
+    Chart.defaults.plugins.tooltip.backgroundColor = colors.tooltipBg;
+    Chart.defaults.plugins.tooltip.titleColor = colors.tooltipText;
+    Chart.defaults.plugins.tooltip.bodyColor = colors.text;
+    Chart.defaults.plugins.tooltip.borderColor = colors.tooltipBorder;
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.elements.bar.borderRadius = 6;
+    Chart.defaults.elements.line.tension = 0.4;
+}
+
+// Initial apply
+applyChartDefaults();
+
+// Chart registry to track all instances
+const chartRegistry = new Map();
+
+// Register a chart instance
+function registerChart(containerId, chart) {
+    // Destroy existing chart if any
+    if (chartRegistry.has(containerId)) {
+        chartRegistry.get(containerId).destroy();
+    }
+    chartRegistry.set(containerId, chart);
+}
+
+// Update all charts when theme changes
+function updateAllChartsTheme() {
+    const colors = getChartColors();
+    
+    chartRegistry.forEach((chart) => {
+        if (chart && chart.options) {
+            // Update legend colors
+            if (chart.options.plugins?.legend?.labels) {
+                chart.options.plugins.legend.labels.color = colors.text;
+            }
+            // Update scale colors
+            if (chart.options.scales) {
+                Object.values(chart.options.scales).forEach(scale => {
+                    if (scale.ticks) scale.ticks.color = colors.text;
+                    if (scale.grid) scale.grid.color = colors.grid;
+                });
+            }
+            // Update tooltip colors
+            if (chart.options.plugins?.tooltip) {
+                chart.options.plugins.tooltip.backgroundColor = colors.tooltipBg;
+                chart.options.plugins.tooltip.titleColor = colors.tooltipText;
+                chart.options.plugins.tooltip.bodyColor = colors.text;
+                chart.options.plugins.tooltip.borderColor = colors.tooltipBorder;
+            }
+            chart.update('none');
+        }
+    });
+}
+
+// Add zoom reset button to chart container
+function addZoomResetButton(containerId, chart) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const parentCard = container.closest('.chart-card');
+    if (!parentCard) return;
+    
+    // Check if button already exists
+    if (parentCard.querySelector('.zoom-reset-btn')) return;
+    
+    const header = parentCard.querySelector('.chart-card-header');
+    if (!header) return;
+    
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'zoom-reset-btn';
+    resetBtn.innerHTML = '<i data-lucide="zoom-out"></i> Sıfırla';
+    resetBtn.title = 'Zoom\'u sıfırla';
+    resetBtn.style.cssText = `
+        display: none;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-text-secondary);
+        background: var(--color-bg-tertiary);
+        border: 1px solid var(--color-border);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-left: auto;
+    `;
+    
+    resetBtn.addEventListener('mouseenter', () => {
+        resetBtn.style.background = 'var(--color-bg-card-hover)';
+        resetBtn.style.color = 'var(--color-text-primary)';
+    });
+    
+    resetBtn.addEventListener('mouseleave', () => {
+        resetBtn.style.background = 'var(--color-bg-tertiary)';
+        resetBtn.style.color = 'var(--color-text-secondary)';
+    });
+    
+    resetBtn.addEventListener('click', () => {
+        chart.resetZoom();
+        resetBtn.style.display = 'none';
+    });
+    
+    header.appendChild(resetBtn);
+    
+    // Initialize Lucide icon
+    if (window.lucide) {
+        window.lucide.createIcons({ icons: { 'zoom-out': true }, nameAttr: 'data-lucide' });
+    }
+    
+    // Show button when zoomed
+    chart.options.plugins.zoom.zoom.onZoomComplete = ({ chart }) => {
+        resetBtn.style.display = 'flex';
+    };
+}
+
+// Listen for theme changes
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'data-theme') {
+            applyChartDefaults();
+            // Small delay to ensure CSS variables are updated
+            setTimeout(updateAllChartsTheme, 50);
+        }
+    });
+});
+
+if (typeof document !== 'undefined') {
+    observer.observe(document.documentElement, { attributes: true });
+}
+
+// =====================================================
+// Helper Functions
+// =====================================================
+
+function getChartContainer(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) {
+        console.warn(`Container '${containerId}' not found`);
+        return null;
+    }
+    container.innerHTML = '';
+    const canvas = document.createElement('canvas');
+    container.appendChild(canvas);
+    return canvas;
+}
+
+function showEmptyState(containerId, message = 'Veri bulunamadı') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="lucide-inbox"></i>
+            </div>
+            <div class="empty-state-title">${message}</div>
+            <div class="empty-state-text">Bu tarih aralığında gösterilecek veri bulunmuyor</div>
+        </div>
+    `;
+}
+
+// =====================================================
+// From-To Events Chart
+// =====================================================
 
 export const renderFromToEvents = (data, containerId) => {
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data?.length) {
+        showEmptyState(containerId);
+        return;
+    }
+
+    const colors = getChartColors();
     const startPoints = {};
     const endPoints = {};
 
-    // Veriyi başlangıç ve bitiş noktalarına göre organize et
     data.forEach(item => {
         const [start, end] = item.label.split('->');
         startPoints[start.trim()] = (startPoints[start.trim()] || 0) + item.nb_events;
         endPoints[end.trim()] = (endPoints[end.trim()] || 0) + item.nb_events;
     });
 
-    // En çok kullanılan 5 başlangıç ve bitiş noktalarını al
     const topStartPoints = Object.entries(startPoints).sort((a, b) => b[1] - a[1]);
     const topEndPoints = Object.entries(endPoints).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-    // X ekseni için bitiş noktalarına dayalı etiketler oluştur
-    const startLabels = topStartPoints.map(([start]) => start);
     const endLabels = topEndPoints.map(([end]) => end);
+    const chartColors = CHART_THEME.generatePalette(topStartPoints.length);
 
-    // Pastel renkleri generatePastelColorScale ile al
-    const backgroundColors = generatePastelColorScale(topStartPoints.length);
+    const datasets = topStartPoints.map(([start], i) => ({
+        label: start,
+        data: topEndPoints.map(([end]) => 
+            data.filter(item => {
+                const [s, e] = item.label.split('->');
+                return s.trim() === start && e.trim() === end;
+            }).reduce((sum, item) => sum + item.nb_events, 0)
+        ),
+        backgroundColor: chartColors[i],
+        borderColor: chartColors[i],
+        borderWidth: 0,
+        borderRadius: 4,
+        stack: 'fromTo'
+    }));
 
-    // Başlangıç noktalarına göre ve ilgili bitiş noktalarıyla datasetler oluştur
-    const datasets = topStartPoints.map(([start, startCount], i) => {
-        return {
-            label: start,
-            data: topEndPoints.map(([end]) => {
-                // Bu başlangıç noktası için ilgili bitiş noktasının sayısını hesapla
-                return data.filter(item => {
-                    const [itemStart, itemEnd] = item.label.split('->');
-                    return itemStart.trim() === start && itemEnd.trim() === end;
-                }).reduce((sum, item) => sum + item.nb_events, 0);
-            }),
-            backgroundColor: backgroundColors[i],  // Pastel rengini burada kullanıyoruz
-            stack: 'fromTo',
-        };
-    });
-
-    // Grafiği oluştur
-    const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Mevcut grafiği temizle
-
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    new Chart(canvas, {
+    const chart = new Chart(canvas, {
         type: 'bar',
-        data: {
-            labels: endLabels, // X ekseninde bitiş noktaları
-            datasets: datasets,
-        },
+        data: { labels: endLabels, datasets },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                title: {
-                    display: true,
-                    text: 'En Çok Gidilen Yerler ve Nerelerden Gidildiği',
-                },
-                legend: {
-                    display: false, // Legend'ı kaldırıyoruz
-                },
+                title: { display: false },
+                legend: { display: false },
                 datalabels: {
-                    color: 'white',
+                    display: (context) => context.dataset.data[context.dataIndex] > 0,
+                    color: '#ffffff',
                     anchor: 'center',
                     align: 'center',
+                    font: { weight: 'bold', size: 10 },
+                    textShadowColor: 'rgba(0,0,0,0.5)',
+                    textShadowBlur: 4,
                     formatter: (value, context) => {
-                        if (value > 0) {
-                            let label = context.dataset.label;
-                            if (label.length > 15) {
-                                return label.slice(0, 12) + '...'; // Örneğin 12 karaktere kadar göster
-                            }
-                            return label;
-                        }
-                        return '';
-                    },
-                    font: {
-                        weight: 'bold',
-                        size: 12,
-                    },
+                        if (value <= 0) return '';
+                        const label = context.dataset.label;
+                        const firstWord = label.split(' ')[0];
+                        return firstWord.length > 10 ? firstWord.slice(0, 8) + '..' : firstWord;
+                    }
                 },
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'xy'
+                    },
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'xy',
+                        onZoomComplete: ({ chart }) => {
+                            chart.canvas.style.cursor = 'move';
+                        }
+                    }
+                }
             },
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
+            interaction: { mode: 'index', intersect: false },
             scales: {
                 x: {
                     stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Bitiş Noktaları',
-                    },
+                    grid: { display: false },
                     ticks: {
-                        display: true,
-                        callback: function (value, index, ticks) {
+                        color: colors.text,
+                        maxRotation: 30,
+                        callback: function(value) {
                             const label = this.getLabelForValue(value);
-                            return label.length > 15 ? label.slice(0, 20) + '...' : label;
-                        },
-                        maxRotation: 30,  // Etiketleri hafif döndürmek için
-                        minRotation: 0
+                            return label.length > 15 ? label.slice(0, 15) + '...' : label;
+                        }
                     }
                 },
                 y: {
                     stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Toplam Seçim Sayısı',
-                    },
-                    beginAtZero: true,
-                },
-            },
+                    grid: { color: colors.grid },
+                    ticks: { color: colors.text },
+                    beginAtZero: true
+                }
+            }
         },
-        plugins: [ChartDataLabels], // Verileri etiketle göster
+        plugins: [ChartDataLabels]
     });
+    registerChart(containerId, chart);
+    addZoomResetButton(containerId, chart);
 };
 
+// =====================================================
+// From-To Events by Start Point
+// =====================================================
 
 export const renderFromToEventsByStart = (data, containerId) => {
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data?.length) {
+        showEmptyState(containerId);
+        return;
+    }
+
+    const colors = getChartColors();
     const startPoints = {};
     const endPoints = {};
 
-    // Veriyi başlangıç ve bitiş noktalarına göre organize et
     data.forEach(item => {
         const [start, end] = item.label.split('->');
         startPoints[start.trim()] = (startPoints[start.trim()] || 0) + item.nb_events;
         endPoints[end.trim()] = (endPoints[end.trim()] || 0) + item.nb_events;
     });
 
-    const hydrogenAndCoData = data.filter(item => {
-        const [start] = item.label.split('->');
-        return start.trim() === 'HYDROGEN AND CO';
-    });
-    console.log('HYDROGEN AND CO ile ilişkili veriler:', hydrogenAndCoData);
-    const h2StageCount = endPoints['H2 Sahnesi / H2 Stage'];
-    console.log('H2 Sahnesi / H2 Stage toplam sayısı:', h2StageCount);
-
-    // En çok kullanılan 5 başlangıç ve bitiş noktalarını al
     const topStartPoints = Object.entries(startPoints).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const topEndPoints = Object.entries(endPoints)
-        .sort((a, b) => b[1] - a[1]);
-    console.log('Top 5 hedef noktalar (endPoints):', topEndPoints.map(e => e[0]));
-    // X ekseni için başlangıç noktalarına dayalı etiketler oluştur
+    const topEndPoints = Object.entries(endPoints).sort((a, b) => b[1] - a[1]);
     const startLabels = topStartPoints.map(([start]) => start);
-    const endLabels = topEndPoints.map(([end]) => end);
+    const chartColors = CHART_THEME.generatePalette(topEndPoints.length);
 
-    // Pastel renkleri generatePastelColorScale ile al
-    const backgroundColors = generatePastelColorScale(topEndPoints.length);
+    const datasets = topEndPoints.map(([end], i) => ({
+        label: end,
+        data: topStartPoints.map(([start]) =>
+            data.filter(item => {
+                const [s, e] = item.label.split('->');
+                return e.trim() === end && s.trim() === start;
+            }).reduce((sum, item) => sum + item.nb_events, 0)
+        ),
+        backgroundColor: chartColors[i],
+        borderColor: chartColors[i],
+        borderWidth: 0,
+        borderRadius: 4,
+        stack: 'fromTo'
+    }));
 
-    // Bitiş noktalarına göre ve ilgili başlangıç noktalarıyla datasetler oluştur
-    const datasets = topEndPoints.map(([end, endCount], i) => {
-        return {
-            label: end,
-            data: topStartPoints.map(([start]) => {
-                // Bu bitiş noktası için ilgili başlangıç noktasının sayısını hesapla
-                return data.filter(item => {
-                    const [itemStart, itemEnd] = item.label.split('->');
-                    return itemEnd.trim() === end && itemStart.trim() === start;
-                }).reduce((sum, item) => sum + item.nb_events, 0);
-            }),
-            backgroundColor: backgroundColors[i],  // Pastel rengini burada kullanıyoruz
-            stack: 'fromTo',
-        };
-    });
-
-    // Grafiği oluştur
-    const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Mevcut grafiği temizle
-
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    new Chart(canvas, {
+    const chart = new Chart(canvas, {
         type: 'bar',
-        data: {
-            labels: startLabels, // X ekseninde başlangıç noktaları
-            datasets: datasets,
-        },
+        data: { labels: startLabels, datasets },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                title: {
-                    display: true,
-                    text: 'Başlangıç Noktalarına Göre Hedef Dağılımı',
-                },
-                legend: {
-                    display: false, // Legend'ı kaldırıyoruz
-                },
+                title: { display: false },
+                legend: { display: false },
                 datalabels: {
-                    color: 'white',
+                    display: (context) => context.dataset.data[context.dataIndex] > 0,
+                    color: '#ffffff',
                     anchor: 'center',
                     align: 'center',
+                    font: { weight: 'bold', size: 10 },
+                    textShadowColor: 'rgba(0,0,0,0.5)',
+                    textShadowBlur: 4,
                     formatter: (value, context) => {
-                        if (value > 0) {
-                            let label = context.dataset.label;
-                            if (label.length > 15) {
-                                return label.slice(0, 12) + '...'; // Örneğin 12 karaktere kadar göster
-                            }
-                            return label;
-                        }
-                        return '';
-                    },
-                    font: {
-                        weight: 'bold',
-                        size: 12,
-                    },
+                        if (value <= 0) return '';
+                        const label = context.dataset.label;
+                        const firstWord = label.split(' ')[0];
+                        return firstWord.length > 10 ? firstWord.slice(0, 8) + '..' : firstWord;
+                    }
                 },
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'xy'
+                    },
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'xy',
+                        onZoomComplete: ({ chart }) => {
+                            chart.canvas.style.cursor = 'move';
+                        }
+                    }
+                }
             },
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
+            interaction: { mode: 'index', intersect: false },
             scales: {
                 x: {
                     stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Başlangıç Noktaları',
-                    },
+                    grid: { display: false },
                     ticks: {
-                        display: true,
-                        callback: function (value, index, ticks) {
+                        color: colors.text,
+                        maxRotation: 30,
+                        callback: function(value) {
                             const label = this.getLabelForValue(value);
-                            return label.length > 15 ? label.slice(0, 12) + '...' : label;
-                        },
-                        maxRotation: 30,  // Etiketleri hafif döndürmek için
-                        minRotation: 0
+                            return label.length > 15 ? label.slice(0, 15) + '...' : label;
+                        }
                     }
                 },
                 y: {
                     stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Toplam Seçim Sayısı',
-                    },
-                    beginAtZero: true,
-                },
-            },
+                    grid: { color: colors.grid },
+                    ticks: { color: colors.text },
+                    beginAtZero: true
+                }
+            }
         },
-        plugins: [ChartDataLabels], // Verileri etiketle göster
+        plugins: [ChartDataLabels]
     });
+    registerChart(containerId, chart);
+    addZoomResetButton(containerId, chart);
 };
 
-
-
+// =====================================================
+// Searched Events Chart
+// =====================================================
 
 export const renderSearchedEvents = (data, containerId) => {
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data?.length) {
+        showEmptyState(containerId);
+        return;
+    }
+
+    const colors = getChartColors();
     const placeMap = {};
 
     data.forEach(item => {
         let [searchTerm, selectedPlace] = item.label.split('->').map(str => str.trim());
-
-        // Eğer searchTerm boşsa, "Doğrudan Seçim" olarak etiketle
-        if (!searchTerm) {
-            searchTerm = "Doğrudan Seçim";
-        }
-
-        if (!placeMap[selectedPlace]) {
-            placeMap[selectedPlace] = {};
-        }
-
-        placeMap[selectedPlace][searchTerm] =
-            (placeMap[selectedPlace][searchTerm] || 0) + item.nb_events;
+        if (!searchTerm) searchTerm = "Doğrudan Seçim";
+        if (!placeMap[selectedPlace]) placeMap[selectedPlace] = {};
+        placeMap[selectedPlace][searchTerm] = (placeMap[selectedPlace][searchTerm] || 0) + item.nb_events;
     });
 
-    // 🔽 Calculate total events per place and get top 10
-    const placeTotals = Object.entries(placeMap).map(([place, terms]) => {
-        const total = Object.values(terms).reduce((sum, count) => sum + count, 0);
-        return { place, total };
-    });
+    const placeTotals = Object.entries(placeMap).map(([place, terms]) => ({
+        place,
+        total: Object.values(terms).reduce((sum, count) => sum + count, 0)
+    }));
 
-    const topPlaces = placeTotals
-        .sort((a, b) => b.total - a.total)
-        .slice(0, 5)
-        .map(entry => entry.place);
-
-    const labels = topPlaces;
-
-    // 🔽 Get unique search terms from only top 10 places
+    const topPlaces = placeTotals.sort((a, b) => b.total - a.total).slice(0, 5).map(e => e.place);
     const allSearchTermsSet = new Set();
-    labels.forEach(place => {
-        const terms = placeMap[place];
-        if (terms) {
-            Object.keys(terms).forEach(term => allSearchTermsSet.add(term));
-        }
-    });
-
+    topPlaces.forEach(place => Object.keys(placeMap[place] || {}).forEach(term => allSearchTermsSet.add(term)));
+    
     const allSearchTerms = Array.from(allSearchTermsSet);
+    const chartColors = CHART_THEME.generatePalette(allSearchTerms.length);
 
-    // 🔽 Generate pastel colors for each search term
-    const pastelColors = generatePastelColorScale(allSearchTerms.length);
-
-    const datasets = allSearchTerms.map((term, index) => ({
+    const datasets = allSearchTerms.map((term, i) => ({
         label: term,
-        data: labels.map(place => placeMap[place][term] || 0),
-        backgroundColor: pastelColors[index],  // Pastel renk kullanıyoruz
+        data: topPlaces.map(place => placeMap[place]?.[term] || 0),
+        backgroundColor: chartColors[i],
+        borderColor: chartColors[i],
+        borderWidth: 0,
+        borderRadius: 4,
         stack: 'search'
     }));
 
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    new Chart(canvas, {
+    const chart = new Chart(canvas, {
         type: 'bar',
-        data: {
-            labels,
-            datasets
-        },
+        data: { labels: topPlaces, datasets },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                title: {
-                    display: true,
-                    text: 'En Çok Seçilen Yerler ve Arama Kaynakları (İlk 5)'
-                },
-                legend: {
-                    display: false
-                },
+                title: { display: false },
+                legend: { display: false },
                 datalabels: {
-                    color: 'white',
+                    display: (context) => context.dataset.data[context.dataIndex] > 0,
+                    color: '#ffffff',
                     anchor: 'center',
                     align: 'center',
+                    font: { weight: 'bold', size: 9 },
+                    textShadowColor: 'rgba(0,0,0,0.5)',
+                    textShadowBlur: 4,
                     formatter: (value, context) => {
-                        if (value > 0) {
-                            let label = context.dataset.label;
-                            if (label.length > 15) {
-                                return label.slice(0, 12) + '...'; // Örneğin 12 karaktere kadar göster
-                            }
-                            return label;
-                        }
-                        return '';
-                    },
-                    font: {
-                        weight: 'bold',
-                        size: 12
+                        if (value <= 0) return '';
+                        let label = context.dataset.label;
+                        if (label.length > 12) label = label.slice(0, 10) + '..';
+                        return label;
                     }
                 }
             },
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
+            interaction: { mode: 'index', intersect: false },
             scales: {
                 x: {
                     stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Seçilen Yer'
-                    },
-
+                    grid: { display: false },
+                    ticks: {
+                        color: colors.text,
+                        maxRotation: 0,
+                        callback: function(value) {
+                            const label = this.getLabelForValue(value);
+                            return label.length > 20 ? label.slice(0, 20) + '...' : label;
+                        }
+                    }
                 },
                 y: {
                     stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Toplam Seçim Sayısı'
-                    },
+                    grid: { color: colors.grid },
+                    ticks: { color: colors.text },
                     beginAtZero: true
                 }
             }
         },
         plugins: [ChartDataLabels]
     });
+    registerChart(containerId, chart);
 };
 
+// =====================================================
+// Top 5 Searched Terms
+// =====================================================
 
 export const renderTop5SearchedTerms = (data, containerId) => {
-    const searchTermMap = {};
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data?.length) {
+        showEmptyState(containerId);
+        return;
+    }
 
+    const themeColors = getChartColors();
+    const searchTermMap = {};
     data.forEach(item => {
         const [searchTerm] = item.label.split('->').map(str => str.trim());
-
-        // 🔍 Sadece gerçekten bir şey yazılmışsa (arama terimi varsa) dahil et
-        if (!searchTerm) return;
-
-        searchTermMap[searchTerm] =
-            (searchTermMap[searchTerm] || 0) + item.nb_events;
+        if (searchTerm) {
+            searchTermMap[searchTerm] = (searchTermMap[searchTerm] || 0) + item.nb_events;
+        }
     });
 
-    // Arama terimlerini toplam seçim sayısına göre azalan sırayla sıralıyoruz
-    const sortedSearchTerms = Object.entries(searchTermMap)
-        .sort((a, b) => b[1] - a[1]) // Azalan sıralama
-        .slice(0, 5); // En çok yapılan 5 aramayı alıyoruz
+    const sorted = Object.entries(searchTermMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const labels = sorted.map(([term]) => term);
+    const dataValues = sorted.map(([, count]) => count);
+    const chartColors = CHART_THEME.generatePalette(5);
 
-    const labels = sortedSearchTerms.map(([term]) => term);
-    const dataValues = sortedSearchTerms.map(([, count]) => count);
-
-    // Pastel renkler için fonksiyonu kullanıyoruz
-    const pastelColors = generatePastelColorScale(labels.length);
-
-    const datasets = [{
-        label: 'En Çok Yapılan Aramalar',
-        data: dataValues,
-        backgroundColor: pastelColors,
-    }];
-
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    new Chart(canvas, {
+    const chart = new Chart(canvas, {
         type: 'bar',
         data: {
             labels,
-            datasets
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'En Çok Yapılan 5 Arama'
-                },
-                legend: {
-                    display: false
-                },
-                datalabels: {
-                    display: true,
-                    color: '#fff',
-                    font: {
-                        weight: 'normal',
-                        size: 14
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        title: function (tooltipItems) {
-                            const index = tooltipItems[0].dataIndex;
-                            return tooltipItems[0].chart.data.labels[index]; // Tam etiketi göster
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Arama Terimi'
-                    },
-                    ticks: {
-                        callback: function (value, index, ticks) {
-                            const label = this.getLabelForValue(value);
-                            return label.length > 15 ? label.slice(0, 12) + '...' : label;
-                        },
-                        maxRotation: 30,
-                        minRotation: 0
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Toplam Seçim Sayısı'
-                    }
-                }
-            },
-            interaction: {
-                mode: 'index',
-                intersect: false
-            }
-        },
-        plugins: [ChartDataLabels]
-    });
-};
-
-export const renderTouchedEvents = (data, containerId) => {
-    const table = document.createElement('table');
-    table.border = 1;
-    table.style.marginTop = '10px';
-    table.style.borderCollapse = 'collapse';
-    table.innerHTML = "<tr><th>Harita Üzerinden En Çok Seçilen</th><th>Seçim Sayısı</th></tr>";
-
-    data.forEach(item => {
-        table.innerHTML += `
-            <tr>
-                <td style="padding:5px">${item.label}</td>
-                <td style="padding:5px">${item.nb_events}</td>
-            </tr>
-        `;
-    });
-
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-    container.appendChild(table);
-};
-
-export const renderDailyEvents = (data, containerId) => {
-    console.log("Gelen Veriler:", data); // Veriyi konsola yazdır
-
-    // Günlük etkinliklerin düzenlenmesi
-    const dailyData = {};
-
-    data.forEach(item => {
-        const date = item.date; // Tarih bilgisini al
-        dailyData[date] = (dailyData[date] || 0) + item.totalEvents; // totalEvents kullanın
-    });
-
-    // Tarihler ve etkinlik sayıları için etiketler
-    const labels = Object.keys(dailyData);
-    const eventCounts = Object.values(dailyData);
-
-    console.log("Düzenlenmiş Etkinlik Verisi:", dailyData); // Düzenlenmiş veriyi konsola yazdır
-
-    // Grafik için canvas elementini oluştur
-    const container = document.getElementById(containerId);
-
-    if (!container) {
-        console.error(`Container '${containerId}' bulunamadı.`);
-        return; // Fonksiyonu burada sonlandır
-    }
-
-    container.innerHTML = ''; // Container'ı temizle
-
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    // Chart.js kullanarak line chart oluştur
-    new Chart(canvas, {
-        type: 'line', // Bar yerine line tipi seçtik
-        data: {
-            labels, // Tarih etiketleri
             datasets: [{
-                label: 'Etkinlik Sayısı',
-                data: eventCounts, // Etkinlik sayıları
-                fill: false, // Dolgu yapılmasın
-                borderColor: 'rgba(75, 192, 192, 1)', // Çizgi rengi
-                backgroundColor: 'rgba(75, 192, 192, 0.2)', // Yarı şeffaf alan
-                borderWidth: 2,
-                tension: 0.1 // Yumuşak geçişler için
+                label: 'Arama Sayısı',
+                data: dataValues,
+                backgroundColor: chartColors,
+                borderColor: chartColors,
+                borderWidth: 0,
+                borderRadius: 6
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            layout: {
+                padding: {
+                    right: 50
+                }
+            },
             plugins: {
-                title: {
-                    display: true,
-                    text: 'Etkinlik Sayıları',
-                },
-                legend: {
-                    display: true, // Legend'ı gösterebiliriz
-                },
+                title: { display: false },
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    color: themeColors.text,
+                    font: { weight: '600', size: 12 },
+                    formatter: (value) => value.toLocaleString('tr-TR'),
+                    clip: false
+                }
             },
             scales: {
                 x: {
-                    title: {
-                        display: true,
-                        text: 'Tarihler'
-                    },
+                    grid: { color: themeColors.grid },
+                    ticks: { color: themeColors.text },
+                    beginAtZero: true,
+                    grace: '10%'
+                },
+                y: {
+                    grid: { display: false },
                     ticks: {
-                        autoSkip: true, // Eğer tarihler çok sıkışıyorsa, otomatik olarak kaydır
-                        maxTicksLimit: 7 // Max 7 etiket gösterebiliriz
+                        color: themeColors.text,
+                        callback: function(value) {
+                            const label = this.getLabelForValue(value);
+                            return label.length > 20 ? label.slice(0, 20) + '...' : label;
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+    registerChart(containerId, chart);
+};
+
+// =====================================================
+// Daily Events Chart
+// =====================================================
+
+export const renderDailyEvents = (data, containerId) => {
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data?.length) {
+        showEmptyState(containerId);
+        return;
+    }
+
+    const colors = getChartColors();
+    const labels = data.map(item => {
+        const date = new Date(item.date);
+        return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
+    });
+    const values = data.map(item => item.totalEvents);
+
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+    gradient.addColorStop(0, 'rgba(139, 92, 246, 0.4)');
+    gradient.addColorStop(1, 'rgba(139, 92, 246, 0.02)');
+
+    const chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Etkinlik Sayısı',
+                data: values,
+                borderColor: '#8b5cf6',
+                backgroundColor: gradient,
+                borderWidth: 3,
+                fill: true,
+                pointBackgroundColor: '#8b5cf6',
+                pointBorderColor: isDarkMode() ? '#1a1a24' : '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: false },
+                legend: { display: false }
+            },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        color: colors.text,
+                        maxTicksLimit: 10 
                     }
                 },
                 y: {
-                    title: {
-                        display: true,
-                        text: 'Etkinlik Sayısı'
-                    },
+                    grid: { color: colors.grid },
+                    ticks: { color: colors.text },
                     beginAtZero: true
                 }
             }
         }
     });
-}
+    registerChart(containerId, chart);
+};
+
+// =====================================================
+// Hourly Events Chart
+// =====================================================
+
 export const renderHourlyEvents = (hourlyVisits, containerId) => {
-    const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !hourlyVisits?.length) {
+        showEmptyState(containerId);
+        return;
+    }
 
-    const container = document.getElementById(containerId);
-    if (!container) return;
+    const themeColors = getChartColors();
+    const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
 
-    container.innerHTML = '';
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    new Chart(canvas, {
+    const chart = new Chart(canvas, {
         type: 'bar',
         data: {
             labels: hours,
             datasets: [{
-                label: 'Ziyaret Sayısı',
+                label: 'Ziyaret',
                 data: hourlyVisits,
-                backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
+                backgroundColor: 'rgba(59, 130, 246, 0.85)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 0,
+                borderRadius: 4
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 25
+                }
+            },
             plugins: {
-                title: {
+                title: { display: false },
+                legend: { display: false },
+                datalabels: {
                     display: true,
-                    text: 'Saatlik Ziyaret Dağılımı'
-                },
-                legend: {
-                    display: false
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#1e3a5f',
+                    font: { weight: '700', size: 9 },
+                    formatter: (value) => value > 0 ? value : ''
                 }
             },
             scales: {
                 x: {
-                    title: {
-                        display: true,
-                        text: 'Saatler'
+                    grid: { display: false },
+                    ticks: { 
+                        color: themeColors.text,
+                        maxTicksLimit: 12 
                     }
                 },
                 y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Ziyaret Sayısı'
-                    }
+                    grid: { color: themeColors.grid },
+                    ticks: { color: themeColors.text },
+                    beginAtZero: true
                 }
             }
-        }
+        },
+        plugins: [ChartDataLabels]
     });
+    registerChart(containerId, chart);
 };
 
-
+// =====================================================
+// Operating System Distribution (Pie Chart)
+// =====================================================
 
 export const renderOperatingSystemDistribution = (data, containerId) => {
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data?.length) {
+        showEmptyState(containerId);
+        return;
+    }
+
+    const themeColors = getChartColors();
     const labels = data.map(item => item.osFamily);
     const values = data.map(item => item.visits);
-
-    const backgroundColors = generatePastelColorScale(labels.length);
-
     const total = values.reduce((a, b) => a + b, 0);
+    const chartColors = CHART_THEME.generatePalette(labels.length);
 
-    const datasets = [{
-        label: 'İşletim Sistemi Dağılımı',
-        data: values,
-        backgroundColor: backgroundColors,
-    }];
+    // Calculate OS totals for storage
+    let iosTotal = 0, androidTotal = 0, webTotal = 0;
+    labels.forEach((label, i) => {
+        const val = values[i];
+        const lowerLabel = label.toLowerCase();
+        if (lowerLabel.includes('ios')) iosTotal += val;
+        else if (lowerLabel.includes('android')) androidTotal += val;
+        else webTotal += val;
+    });
 
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
+    localStorage.setItem('iosTotal', iosTotal);
+    localStorage.setItem('androidTotal', androidTotal);
+    localStorage.setItem('webTotal', webTotal);
 
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    new Chart(canvas, {
-        type: 'pie',
+    const chart = new Chart(canvas, {
+        type: 'doughnut',
         data: {
-            labels: labels,
-            datasets: datasets
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: chartColors,
+                borderColor: isDarkMode() ? 'rgba(26, 26, 36, 1)' : 'rgba(255, 255, 255, 1)',
+                borderWidth: 3,
+                hoverOffset: 10
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '60%',
             plugins: {
-                title: {
-                    display: true,
-                    text: 'İşletim Sistemi Dağılımı'
-                },
+                title: { display: false },
                 legend: {
                     position: 'bottom',
                     labels: {
-                        generateLabels: function (chart) {
-                            const data = chart.data;
-                            const dataset = data.datasets[0];
-
-                            return data.labels.map((label, i) => {
-                                const value = dataset.data[i];
+                        color: themeColors.text,
+                        padding: 15,
+                        generateLabels(chart) {
+                            const colors = getChartColors();
+                            return chart.data.labels.map((label, i) => {
+                                const value = chart.data.datasets[0].data[i];
                                 const percentage = ((value / total) * 100).toFixed(1);
-
+                                if (percentage < 0.1) return null;
                                 return {
-                                    text: `${label} (%${percentage})`,
-                                    fillStyle: dataset.backgroundColor[i],
-                                    strokeStyle: dataset.backgroundColor[i],
-                                    lineWidth: 1,
-                                    hidden: isNaN(dataset.data[i]) || chart.getDatasetMeta(0).data[i].hidden,
+                                    text: `${label} (${percentage}%)`,
+                                    fillStyle: chart.data.datasets[0].backgroundColor[i],
+                                    fontColor: colors.text,
                                     index: i
                                 };
-                            });
+                            }).filter(Boolean);
                         }
                     }
                 },
                 datalabels: {
                     color: '#fff',
-                    formatter: (value, context) => {
-                        const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                        const percentage = ((value / total) * 100).toFixed(1);
-                        return `${percentage}%`;
-                    },
-                    font: {
-                        weight: 'bold',
-                        size: 12
+                    font: { weight: '600', size: 11 },
+                    formatter: (value) => {
+                        const pct = ((value / total) * 100);
+                        return pct >= 5 ? `${pct.toFixed(0)}%` : '';
                     }
                 }
             }
         },
         plugins: [ChartDataLabels]
     });
+    registerChart(containerId, chart);
 };
-let others = [];
+
+// =====================================================
+// Language Distribution (Pie Chart)
+// =====================================================
 
 export const renderLanguageDistribution = (data, containerId) => {
-    const sortedEntries = Object.entries(data).sort((a, b) => b[1] - a[1]);
-
-    const top5 = sortedEntries.slice(0, 5);
-    const others = sortedEntries.slice(5); // Local değişken
-
-    const labels = top5.map(([language]) => language.split(' (')[0]);
-    const values = top5.map(([, value]) => value);
-
-    if (others.length > 0) {
-        const otherTotal = others.reduce((sum, [, value]) => sum + value, 0);
-        labels.push('Diğer');
-        values.push(otherTotal);
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data || Object.keys(data).length === 0) {
+        showEmptyState(containerId);
+        return;
     }
 
-    const backgroundColors = generatePastelColorScale(labels.length);
+    const themeColors = getChartColors();
+    const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+    const top5 = sorted.slice(0, 5);
+    const others = sorted.slice(5);
+
+    const labels = top5.map(([lang]) => lang.split(' (')[0]);
+    const values = top5.map(([, val]) => val);
+
+    if (others.length > 0) {
+        labels.push('Diğer');
+        values.push(others.reduce((sum, [, val]) => sum + val, 0));
+    }
+
     const total = values.reduce((a, b) => a + b, 0);
+    const chartColors = CHART_THEME.generatePalette(labels.length);
 
-    const datasets = [{
-        label: 'Dil Dağılımı',
-        data: values,
-        backgroundColor: backgroundColors,
-    }];
-
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    new Chart(canvas, {
-        type: 'pie',
+    const chart = new Chart(canvas, {
+        type: 'doughnut',
         data: {
-            labels: labels,
-            datasets: datasets
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: chartColors,
+                borderColor: isDarkMode() ? 'rgba(26, 26, 36, 1)' : 'rgba(255, 255, 255, 1)',
+                borderWidth: 3,
+                hoverOffset: 10
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '60%',
             plugins: {
-                title: {
-                    display: true,
-                    text: 'Dil Dağılımı (Top 5 + Diğer)'
-                },
+                title: { display: false },
                 legend: {
                     position: 'bottom',
-                    labels: {
-                        generateLabels: function (chart) {
-                            const data = chart.data;
-                            const dataset = data.datasets[0];
-
-                            return data.labels.map((label, i) => {
-                                const value = dataset.data[i];
-                                const percentage = ((value / total) * 100).toFixed(1);
-
-                                return {
-                                    text: `${label} (%${percentage})`,
-                                    fillStyle: dataset.backgroundColor[i],
-                                    strokeStyle: dataset.backgroundColor[i],
-                                    lineWidth: 1,
-                                    hidden: isNaN(value) || chart.getDatasetMeta(0).data[i].hidden,
-                                    index: i
-                                };
-                            });
-                        }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function (tooltipItem) {
-                            const label = tooltipItem.label;
-                            const value = tooltipItem.raw;
-
-                            if (label === 'Diğer') {
-                                const otherLabels = others.map(([lang]) => lang.split(' (')[0]);
-                                return [`${label}: ${value}`, ...otherLabels.map(l => `• ${l}`)];
-                            }
-
-                            return `${label}: ${value}`;
+                    labels: { 
+                        color: themeColors.text,
+                        padding: 15,
+                        usePointStyle: true,
+                        generateLabels(chart) {
+                            const colors = getChartColors();
+                            return chart.data.labels.map((label, i) => ({
+                                text: label,
+                                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                                fontColor: colors.text,
+                                index: i
+                            }));
                         }
                     }
                 },
                 datalabels: {
                     color: '#fff',
-                    formatter: (value, context) => {
-                        const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                        const percentage = ((value / total) * 100).toFixed(1);
-                        return `${percentage}%`;
-                    },
-                    font: {
-                        weight: 'bold',
-                        size: 12
+                    font: { weight: '600', size: 11 },
+                    formatter: (value) => {
+                        const pct = ((value / total) * 100);
+                        return pct >= 5 ? `${pct.toFixed(0)}%` : '';
                     }
                 }
             }
         },
         plugins: [ChartDataLabels]
     });
+    registerChart(containerId, chart);
 };
 
-export async function categorizeTitlesWithJson(titles, jsonFilePath) {
-    try {
-        console.log(`📁 JSON dosyası yükleniyor: ${jsonFilePath}`);
-        const response = await fetch(jsonFilePath);
-        if (!response.ok) {
-            throw new Error(`Dosya yüklenemedi: ${response.status}`);
-        }
-
-        const excelData = await response.json();
-        console.log("✅ JSON verisi başarıyla alındı:", excelData);
-
-        const result = {};
-
-        // Başlıkların ID'lerini ve Cat_TR kategorilerini eşleştirelim
-        titles.forEach(title => {
-            const matched = excelData.find(item => item.Title === title); // Başlıkları JSON'da arıyoruz
-            if (matched) {
-                const category = matched.Cat_TR; // Kategoriyi alıyoruz
-
-                if (category) {
-                    if (!result[category]) {
-                        result[category] = []; // Eğer kategori yoksa, yeni bir kategori oluşturuyoruz
-                    }
-
-                    result[category].push({ id: matched.ID, title: matched.Title }); // Kategorize edilen başlıkları ekliyoruz
-                    console.log(`✅ "${matched.Title}" (${matched.ID}) kategorize edildi: ${category}`);
-                } else {
-                    console.warn(`⚠️ "${matched.Title}" başlığının kategorisi bulunamadı!`);
-                }
-            } else {
-                console.warn(`⚠️ "${title}" başlığı JSON içinde bulunamadı!`);
-            }
-        });
-
-        console.log("🗂️ Kategorize edilmiş veriler:", result);
-
-        // Kategorilerin sayısını hesapla
-        const categoryData = Object.entries(result).map(([category, items]) => ({
-            label: category,
-            nb_events: items.length
-        }));
-
-        console.log("📊 Kategoriler ve Etkinlik Sayıları:", categoryData);
-
-        return categoryData; // Kategorileri döndürüyoruz
-    } catch (error) {
-        console.error("💥 Hata:", error);
-        return [];
-    }
-}
-
-export async function summarizeTitlesWithDetails(titleCountMap, jsonFilePath, totalEvents) {
-    try {
-        console.log(`📁 JSON dosyası yükleniyor: ${jsonFilePath}`);
-        const response = await fetch(jsonFilePath);
-        if (!response.ok) {
-            throw new Error(`Dosya yüklenemedi: ${response.status}`);
-        }
-
-        const jsonData = await response.json();
-        console.log("✅ JSON verisi başarıyla alındı:", jsonData);
-
-        const result = [];
-        const highlighted = []; // 🔸 Stand,Premium olanlar burada toplanacak
-
-        Object.entries(titleCountMap).forEach(([title, count]) => {
-            const matched = jsonData.find(item => item.Title === title);
-
-            if (matched) {
-                const category = matched.Cat_TR || "Kategori Yok";
-                const description = matched.Description || "Açıklama Yok";
-
-                const entry = {
-                    Title: matched.Title,
-                    Count: count,
-                    Cat_TR: category,
-                    Description: description
-                };
-
-                result.push(entry);
-
-                console.log(`✅ "${matched.Title}" (${count} kez) → Kategori: ${category}, Açıklama: ${description}`);
-
-                // Kategori tam olarak "Stand,Premium" ise localStorage için ekle
-                if (category === "Stand,Premium") {
-                    console.log(`⭐️ ${matched.Title} → Öne Çıkan Kategori: ${category}`);
-                    highlighted.push(entry);
-                }
-            } else {
-                console.warn(`⚠️ "${title}" başlığı JSON içinde bulunamadı!`);
-            }
-        });
-
-        // 💾 Stand,Premium olanları localStorage'a kaydet
-        localStorage.setItem("highlightedEntries", JSON.stringify(highlighted));
-        console.log("💾 Stand,Premium olanlar localStorage'a kaydedildi:", highlighted);
-
-        console.log("📊 Özetlenen Başlıklar:", result);
-        return result;
-    } catch (error) {
-        console.error("💥 Hata:", error);
-        return [];
-    }
-}
-
-export async function summarizeTopStoresByCategory(titleEventsMap, jsonFilePath) {
-    try {
-        console.log(`📁 JSON dosyası yükleniyor: ${jsonFilePath}`);
-        const response = await fetch(jsonFilePath);
-        if (!response.ok) {
-            throw new Error(`Dosya yüklenemedi: ${response.status}`);
-        }
-
-        const jsonData = await response.json();
-        console.log("✅ JSON verisi başarıyla alındı:", jsonData);
-
-        const categoriesToInclude = [
-            "Giyim", "Ayakkabı & Çanta", "Aksesuar & Mücevher", "Elektronik", "Çocuk",
-            "Kozmetik & Sağlık", "Ev & Dekorasyon", "Lokum & Şekerleme", "Spor",
-            "Market", "Kültür & Eğlence", "Stand", "Stand,Premium", "Sahne"
-        ];
-
-        const filteredResults = [];
-
-        Object.entries(titleEventsMap).forEach(([title, count]) => {
-            const matched = jsonData.find(item => item.Title === title && categoriesToInclude.includes(item.Cat_TR));
-            if (matched) {
-                filteredResults.push({
-                    Title: matched.Title,
-                    Count: count,
-                    Cat_TR: matched.Cat_TR,
-                    Description: matched.Description || "Açıklama Yok"
-                });
-
-
-            } else {
-
-            }
-        });
-
-        const topResults = filteredResults
-            .sort((a, b) => b.Count - a.Count)
-            .slice(0, 10);
-
-        return topResults;
-    } catch (error) {
-        console.error("💥 Hata:", error);
-        return [];
-    }
-}
-
-export async function categorizeEventsByDayAndCategory(dailyData, jsonFilePath) {
-    try {
-        console.log(`📁 JSON dosyası yükleniyor: ${jsonFilePath}`);
-
-        // JSON dosyasını yükleme
-        const response = await fetch(jsonFilePath);
-        if (!response.ok) {
-            throw new Error(`Dosya yüklenemedi: ${response.status}`);
-        }
-
-        // JSON verisini alma
-        const jsonData = await response.json();
-        console.log("✅ JSON verisi başarıyla alındı:", jsonData);
-
-        // Kategorilere dahil etmek istediğimiz kategoriler
-        const categoriesToInclude = [
-            "Giyim", "Ayakkabı & Çanta", "Aksesuar & Mücevher", "Elektronik", "Çocuk",
-            "Kozmetik & Sağlık", "Ev & Dekorasyon", "Lokum & Şekerleme", "Spor",
-            "Market", "Kültür & Eğlence", "Hizmet", "Otopark", "Stand", "Wc", "Yiyecek"
-        ];
-
-        // Günlük verileri tutacak nesne
-        const categorizedData = {};
-
-        // Her gün için işlem yapalım
-        Object.entries(dailyData).forEach(([date, events]) => {
-            const dailyCategories = {};
-
-            // Gelen her etkinliği kontrol et
-            events.forEach(event => {
-                const title = event.label;
-                const count = event.total_nb_events;
-
-                // JSON dosyasındaki kategoriye uygun item'leri bulma
-                const matched = jsonData.find(item => item.Title === title && categoriesToInclude.includes(item.Cat_TR));
-
-                if (matched) {
-                    // Kategorilere göre verileri gruplayalım
-                    const category = matched.Cat_TR;
-
-                    if (!dailyCategories[category]) {
-                        dailyCategories[category] = 0;
-                    }
-                    dailyCategories[category] += count;
-                }
-            });
-
-            // Gün için kategorize edilmiş veriyi kaydedelim
-            categorizedData[date] = dailyCategories;
-        });
-
-        console.log("📊 Günlük kategorize edilmiş etkinlik verileri:", categorizedData);
-        return categorizedData;
-    } catch (error) {
-        console.error("💥 Hata:", error);
-        return {};
-    }
-}
-
-export async function summarizeTopFoodStoresByCategory(titlesWithCounts, jsonFilePath) {
-    try {
-        console.log(`📁 JSON dosyası yükleniyor: ${jsonFilePath}`);
-        const response = await fetch(jsonFilePath);
-        if (!response.ok) {
-            throw new Error(`Dosya yüklenemedi: ${response.status}`);
-        }
-
-        const jsonData = await response.json();
-        console.log("✅ JSON verisi başarıyla alındı:", jsonData);
-
-        // Başlık sayacı: titlesWithCounts içindeki aynı başlıkları toplamak için
-        const combinedTitles = titlesWithCounts.reduce((accumulator, currentItem) => {
-            // Eğer title zaten accumulator içinde varsa, nbEvents'ini arttır
-            if (accumulator[currentItem.eventName]) {
-                accumulator[currentItem.eventName] += currentItem.nbEvents;
-            } else {
-                accumulator[currentItem.eventName] = currentItem.nbEvents;
-            }
-            return accumulator;
-        }, {});
-
-        // Toplanan etkinliklerin toplam sayısını görmek için
-        console.log("Toplanan etkinlikler:", combinedTitles);
-
-        // JSON'dan filtrelenen sonuçları bul
-        const categoriesToInclude = [
-            "Restoran & Cafe",
-            "Fast Food",
-            "Yiyecek"
-        ];
-
-        const filteredResults = [];
-
-        Object.entries(combinedTitles).forEach(([eventName, totalEvents]) => {
-            const matched = jsonData.find(item => item.Title === eventName && categoriesToInclude.includes(item.Cat_TR));
-
-            if (matched) {
-                filteredResults.push({
-                    Title: matched.Title,
-                    Count: totalEvents,
-                    Cat_TR: matched.Cat_TR,
-                    Description: matched.Description || "Açıklama Yok"
-                });
-
-
-            } else {
-
-            }
-        });
-
-        // Kategorilere göre en yüksek 10 birimi al
-        const topResults = filteredResults
-            .sort((a, b) => b.Count - a.Count)  // Sayıya göre azalan sırala
-            .slice(0, 10);  // İlk 10 elemanı al
-
-        console.log("📊 En Yüksek 10 Başlık:", topResults);
-        return topResults;
-
-    } catch (error) {
-        console.error("💥 Hata:", error);
-        return [];
-    }
-}
-
-export async function summarizeTopServicesByCategory(titlesWithCounts, jsonFilePath) {
-    try {
-        console.log(`📁 JSON dosyası yükleniyor: ${jsonFilePath}`);
-        const response = await fetch(jsonFilePath);
-        if (!response.ok) {
-            throw new Error(`Dosya yüklenemedi: ${response.status}`);
-        }
-
-        const jsonData = await response.json();
-        console.log("✅ JSON verisi başarıyla alındı:", jsonData);
-
-        const combinedTitles = titlesWithCounts.reduce((accumulator, currentItem) => {
-            if (accumulator[currentItem.eventName]) {
-                accumulator[currentItem.eventName] += currentItem.nbEvents;
-            } else {
-                accumulator[currentItem.eventName] = currentItem.nbEvents;
-            }
-            return accumulator;
-        }, {});
-
-        console.log("servis Toplanan etkinlikler:", combinedTitles);
-
-        const categoriesToInclude = [
-            "Hizmetler",
-            "Hizmet Mağazaları",
-            "Hizmet",
-            "Otopark",
-            "Wc",
-        ];
-
-        const filteredResults = [];
-
-        Object.entries(combinedTitles).forEach(([eventName, totalEvents]) => {
-            const matched = jsonData.find(item => item.Title === eventName && categoriesToInclude.includes(item.Cat_TR));
-
-            if (matched) {
-                filteredResults.push({
-                    Title: matched.Title,
-                    Count: totalEvents,
-                    Cat_TR: matched.Cat_TR,
-                    Description: matched.Description || "Açıklama Yok"
-                });
-            }
-        });
-
-        let topResults = filteredResults
-            .sort((a, b) => b.Count - a.Count)
-            .slice(0, 10);
-
-        // Özel durum: "Car Park (Hall 7-8)" -> "Otopark (Hall 7-8)"
-        const carParkIndex = topResults.findIndex(item => item.Title === "Car Park (Hall 7-8)");
-        const otoparkIndex = topResults.findIndex(item => item.Title === "Otopark (Hall 7-8)");
-
-        if (carParkIndex !== -1) {
-            const carParkItem = topResults[carParkIndex];
-
-            if (otoparkIndex !== -1) {
-                topResults[otoparkIndex].Count += carParkItem.Count;
-            } else {
-                topResults.push({
-                    ...carParkItem,
-                    Title: "Otopark (Hall 7-8)",
-                    Cat_TR: "Otopark"
-                });
-            }
-
-            topResults.splice(carParkIndex, 1);
-        }
-
-        // İsim düzeltmeleri: İngilizce kısımları çıkar
-        topResults = topResults.map(item => {
-            if (item.Title === "Mescid - Masjid") {
-                return { ...item, Title: "Mescid" };
-            }
-            if (item.Title === "Kaynak Uygulama Özel Alanı - Welding Application Special Area") {
-                return { ...item, Title: "Kaynak Uygulama Özel Alanı" };
-            }
-            if (item.Title === "Medya Köşesi - Media Corner") {
-                return { ...item, Title: "Medya Köşesi" };
-            }
-            if (item.Title === "Hidrojen ve Yakıt Hücreleri Özel Alanı - Hydrogen and Fuel Cells Special Area") {
-                return { ...item, Title: "Hidrojen ve Yakıt Hücreleri Özel Alanı" };
-            }
-            return item;
-        });
-
-        // Tekrar sıralama
-        topResults = topResults
-            .sort((a, b) => b.Count - a.Count)
-            .slice(0, 10);
-
-        console.log("📊 En Yüksek 10 servis (düzenlenmiş):", topResults);
-        return topResults;
-
-    } catch (error) {
-        console.error("💥 Hata:", error);
-        return [];
-    }
-}
-export function cleanCampaignData(data) {
-    const floorMap = {
-        "-3": "-3. kat",
-        "-2": "-2. kat",
-        "-1": "-1. kat",
-        "0": "0. kat",
-        "1": "1. kat",
-        "2": "2. kat",
-        "3": "3. kat"
-    };
-
-    return data.map(item => {
-        const label = item.label;
-        const nb_actions = item.nb_actions;
-
-        // kattan sonra gelen sayı değerini alalım
-        const match = label.match(/k-?(\d+)/i);
-        let number = match ? parseInt(match[1], 10) : null;
-
-        // Kat belirleme
-        let floorKey;
-        if (label.includes('-')) {
-            // Negatif katlar
-            floorKey = number >= 300 ? "-3"
-                : number >= 200 ? "-2"
-                    : number >= 100 ? "-1"
-                        : "-1"; // default
-        } else {
-            // Pozitif katlar
-            floorKey = number < 100 ? "0"
-                : number < 200 ? "1"
-                    : number < 300 ? "2"
-                        : "3";
-        }
-
-        const floor = floorMap[floorKey] || "Bilinmeyen kat";
-
-        return {
-            kiosk: label,
-            actions: nb_actions,
-            floor: floor
-        };
-    });
-}
-
-export function getTotalActionsByFloor(data) {
-    // Katlara göre toplam kullanım sayısını tutacak bir obje
-    const totalActionsByFloor = {
-        "-3": 0,
-        "-2": 0,
-        "-1": 0,
-        "0": 0,
-        "1": 0,
-        "2": 0,
-        "3": 0
-    };
-
-    // Veriyi işle
-    data.forEach(item => {
-        const label = item.label;
-        const nb_actions = item.nb_actions;
-
-        // kattan sonra gelen sayı değerini alalım
-        const match = label.match(/k-?(\d+)/i);
-        let number = match ? parseInt(match[1], 10) : null;
-
-        // Kat belirleme
-        let floorKey;
-        if (label.includes('-')) {
-            // Negatif katlar
-            floorKey = number >= 300 ? "-3"
-                : number >= 200 ? "-2"
-                    : number >= 100 ? "-1"
-                        : "-1"; // default
-        } else {
-            // Pozitif katlar
-            floorKey = number < 100 ? "0"
-                : number < 200 ? "1"
-                    : number < 300 ? "2"
-                        : "3";
-        }
-
-        // Toplam kullanım sayısını ilgili kat için artır
-        if (totalActionsByFloor[floorKey] !== undefined) {
-            totalActionsByFloor[floorKey] += nb_actions;
-        }
-    });
-
-    // Toplam kullanım sayılarıyla birlikte döndür
-    return totalActionsByFloor;
-}
-
-
-export function findEventFloor(titlesWithCounts, filepath) {
-    // JSON dosyasındaki kat bilgilerini almak için fetch işlemi yapılıyor
-    return fetch(filepath)
-        .then(response => response.json())
-        .then(floorData => {
-            // Kat verilerini bir objeye dönüştürerek, etkinlik ismi ile ilişkilendiriyoruz
-            const eventFloorMap = floorData.reduce((acc, item) => {
-                // Title'ı düzgün bir şekilde alıyoruz
-                const title = item.Title.trim(); // Title'ı temizliyoruz (boşlukları kaldırıyoruz)
-                const floor = item.Floor; // Floor bilgisini alıyoruz
-                acc[title] = floor; // Eşleme yapıyoruz
-                return acc;
-            }, {});
-
-            console.log("Event Floor Map:", eventFloorMap); // Kat bilgileri haritasını kontrol edelim
-
-            // Sonuçları toplamak için bir dizi oluşturuyoruz
-            const results = titlesWithCounts.map(item => {
-                const eventName = item.eventName.trim(); // eventName'in başındaki ve sonundaki boşlukları temizliyoruz
-
-                // eventName ile eşleşen kat bilgisini eventFloorMap'ten alıyoruz
-                const floor = eventFloorMap[eventName] || "Bilinmiyor"; // Kat bilgisi bulunmazsa "Bilinmiyor" döndürüyoruz
-
-                return {
-                    eventName: item.eventName,
-                    floor: floor,
-                    nbEvents: item.nbEvents
-                };
-            });
-
-            // "Bilinmiyor" olan floor'ları temizliyoruz
-            const filteredResults = results.filter(item => item.floor !== "Bilinmiyor");
-
-            console.log("Filtered Results (without unknown floors):", filteredResults); // "Bilinmiyor" olanları temizledikten sonra veriyi kontrol edelim
-
-            // Aynı eventName'lere sahip olanları birleştiriyoruz
-            const mergedResults = filteredResults.reduce((acc, item) => {
-                // Eğer eventName zaten acc içinde varsa, nbEvents'i topluyoruz
-                const existingItem = acc.find(i => i.eventName === item.eventName);
-                if (existingItem) {
-                    existingItem.nbEvents += item.nbEvents; // nbEvents'i topluyoruz
-                } else {
-                    acc.push(item); // Yoksa yeni bir öğe ekliyoruz
-                }
-                return acc;
-            }, []);
-
-            // Total events per floor calculation
-            const totalEventsByFloor = mergedResults.reduce((acc, item) => {
-                // Kat bilgisi ile eşleşen nbEvents'i ekliyoruz
-                const floor = item.floor;
-                const nbEvents = item.nbEvents;
-
-                if (!acc[floor]) {
-                    acc[floor] = 0; // Kat yoksa başlatıyoruz
-                }
-
-                acc[floor] += nbEvents; // Katın toplam etkinlik sayısını ekliyoruz
-                return acc;
-            }, {});
-
-            console.log("Total Events by Floor:", totalEventsByFloor); // Her kat için toplam etkinlik sayısını yazdıralım
-
-            // Sonuçları döndürüyoruz
-            return totalEventsByFloor;
-        })
-        .catch(error => {
-            console.error("Hata oluştu:", error);
-        });
-}
-
-
-
-
+// =====================================================
+// Store Categories Donut Chart
+// =====================================================
 
 export const renderStoreCategoriesDonutChart = (data, containerId) => {
-    const categoryMap = {};
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data?.length) {
+        showEmptyState(containerId);
+        return;
+    }
 
-    // Kategori bazlı toplamları hesapla
+    const themeColors = getChartColors();
+    const categoryMap = {};
     data.forEach(item => {
         const category = item.label.trim();
         categoryMap[category] = (categoryMap[category] || 0) + item.nb_events;
     });
 
-    // Toplam etkinlik sayısını hesapla
-    const totalEvents = Object.values(categoryMap).reduce((sum, count) => sum + count, 0);
+    const totalEvents = Object.values(categoryMap).reduce((sum, c) => sum + c, 0);
+    const updated = {};
+    let otherCount = 0;
 
-    // 5%'in altındaki kategorileri "Diğer" olarak topla
-    const updatedCategoryMap = {};
-    let otherCategoryCount = 0;
-
-    Object.keys(categoryMap).forEach(category => {
-        const categoryCount = categoryMap[category];
-        const percentage = (categoryCount / totalEvents) * 100;
-
-        if (percentage < 5) {
-            otherCategoryCount += categoryCount;  // %5'ten az olanları topluyoruz
+    Object.entries(categoryMap).forEach(([cat, count]) => {
+        if ((count / totalEvents) * 100 < 5) {
+            otherCount += count;
         } else {
-            updatedCategoryMap[category] = categoryCount;  // %5'ten büyük olanları olduğu gibi bırakıyoruz
+            updated[cat] = count;
         }
     });
 
-    // "Diğer" kategorisini ekliyoruz
-    if (otherCategoryCount > 0) {
-        updatedCategoryMap["Diğer"] = otherCategoryCount;
-    }
+    if (otherCount > 0) updated['Diğer'] = otherCount;
 
-    // Grafikte kullanılacak veriyi oluştur
-    const labels = Object.keys(updatedCategoryMap);
-    const dataValues = Object.values(updatedCategoryMap);
+    const labels = Object.keys(updated);
+    const values = Object.values(updated);
+    const chartColors = CHART_THEME.generatePalette(labels.length);
 
-    // Pastel renklerini generatePastelColorScale ile al
-    const backgroundColors = generatePastelColorScale(labels.length);
-
-    const datasets = [{
-        data: dataValues,
-        backgroundColor: backgroundColors,
-        borderWidth: 1
-    }];
-
-    const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Var olan grafiği temizle
-
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    new Chart(canvas, {
+    const chart = new Chart(canvas, {
         type: 'doughnut',
         data: {
             labels,
-            datasets
+            datasets: [{
+                data: values,
+                backgroundColor: chartColors,
+                borderColor: isDarkMode() ? 'rgba(26, 26, 36, 1)' : 'rgba(255, 255, 255, 1)',
+                borderWidth: 3,
+                hoverOffset: 10
+            }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            cutout: '55%',
             plugins: {
-                title: {
-                    display: true,
-                    text: 'Ana Kategorilere Göre Dağılım'
-                },
+                title: { display: false },
                 legend: {
                     position: 'bottom',
-                    labels: {
-                        boxWidth: 20,
-                        padding: 15
+                    labels: { 
+                        color: themeColors.text,
+                        padding: 12, 
+                        font: { size: 11 },
+                        usePointStyle: true,
+                        generateLabels(chart) {
+                            const colors = getChartColors();
+                            return chart.data.labels.map((label, i) => ({
+                                text: label,
+                                fillStyle: chart.data.datasets[0].backgroundColor[i],
+                                fontColor: colors.text,
+                                index: i
+                            }));
+                        }
                     }
                 },
                 datalabels: {
-                    color: 'white',
-                    formatter: (value, context) => {
-                        const total = dataValues.reduce((a, b) => a + b, 0);
-                        const percentage = ((value / total) * 100).toFixed(1);
-                        return `${percentage}%`;
-                    },
-                    font: {
-                        weight: 'bold',
-                        size: 12
+                    color: '#fff',
+                    font: { weight: '600', size: 10 },
+                    formatter: (value) => {
+                        const pct = (value / totalEvents) * 100;
+                        return pct >= 5 ? `${pct.toFixed(0)}%` : '';
                     }
                 }
             }
         },
         plugins: [ChartDataLabels]
     });
+    registerChart(containerId, chart);
 };
+
+// =====================================================
+// Store Categories Area Chart
+// =====================================================
+
 export const renderStoreCategoriesAreaChart = (data, containerId) => {
-    const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Var olan grafiği temizle
+    const canvas = getChartContainer(containerId);
+    if (!canvas || !data || Object.keys(data).length === 0) {
+        showEmptyState(containerId);
+        return;
+    }
 
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-
-    // Veriyi kategori ve tarihe göre grupla
+    const themeColors = getChartColors();
     const categoryDateMap = {};
     const dateSet = new Set();
 
-    // Data içindeki kategoriyi ve tarihi analiz et
     Object.entries(data).forEach(([date, categories]) => {
         dateSet.add(date);
-
         Object.entries(categories).forEach(([category, count]) => {
             if (!categoryDateMap[category]) categoryDateMap[category] = {};
             categoryDateMap[category][date] = (categoryDateMap[category][date] || 0) + count;
         });
     });
 
-    // Tüm tarihleri sırala
     const sortedDates = Array.from(dateSet).sort();
-
-    // Pastel renkleri generatePastelColorScale ile al
-    const backgroundColors = generatePastelColorScale(Object.keys(categoryDateMap).length);
-
-    // Datasetleri hazırla
-    const datasets = Object.keys(categoryDateMap).map((category, i) => {
-        const dataPoints = sortedDates.map(date => categoryDateMap[category][date] || 0);
-        return {
-            label: category,
-            data: dataPoints,
-            fill: true,
-            backgroundColor: backgroundColors[i],  // Pastel rengini burada kullanıyoruz
-            borderColor: backgroundColors[i],     // Border rengi olarak da aynı pastel rengini kullanıyoruz
-            tension: 0.3
-        };
+    const labels = sortedDates.map(d => {
+        const date = new Date(d);
+        return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
     });
+    
+    const chartColors = CHART_THEME.generatePalette(Object.keys(categoryDateMap).length);
 
-    // Chart.js ile çizim yap
-    new Chart(canvas, {
+    const datasets = Object.keys(categoryDateMap).map((category, i) => ({
+        label: category,
+        data: sortedDates.map(date => categoryDateMap[category][date] || 0),
+        borderColor: chartColors[i],
+        backgroundColor: chartColors[i].replace(')', ', 0.1)').replace('rgb', 'rgba'),
+        fill: true,
+        tension: 0.4,
+        borderWidth: 2
+    }));
+
+    const chart = new Chart(canvas, {
         type: 'line',
-        data: {
-            labels: sortedDates,
-            datasets: datasets
-        },
+        data: { labels, datasets },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                title: {
-                    display: true,
-                    text: 'Kategorilere Göre Zamanla Etkinlik Dağılımı'
-                },
+                title: { display: false },
                 legend: {
                     position: 'bottom',
-                    labels: {
-                        boxWidth: 20,
-                        padding: 15
+                    labels: { 
+                        color: themeColors.text,
+                        padding: 12, 
+                        font: { size: 11 }, 
+                        usePointStyle: true 
                     }
                 }
             },
+            interaction: { mode: 'index', intersect: false },
             scales: {
                 x: {
-                    title: {
-                        display: true,
-                        text: 'Tarih'
+                    grid: { display: false },
+                    ticks: { 
+                        color: themeColors.text,
+                        maxTicksLimit: 10 
                     }
                 },
                 y: {
+                    grid: { color: themeColors.grid },
+                    ticks: { color: themeColors.text },
                     beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Etkinlik Sayısı'
-                    }
+                    stacked: true
                 }
             }
         }
     });
+    registerChart(containerId, chart);
 };
 
+// =====================================================
+// Modern Table Renderer
+// =====================================================
 
-
-
-
-
-
-export const renderTopUnitsTable = (data, containerId, totalEvents) => {
+function createModernTable(data, columns, containerId, options = {}) {
     const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    const top20 = data.sort((a, b) => b.Count - a.Count).slice(0, 20);
-
-    // Başlık ekle
-    const title = document.createElement('h3');
-    title.innerText = 'En Çok Etkinlik Gösteren Birimler (İlk 20)';
-    title.classList.add('text-xl', 'font-semibold', 'mb-4');
-    container.appendChild(title);
+    if (!container) return;
+    
+    if (!data?.length) {
+        container.innerHTML = `
+            <div class="empty-state" style="padding: 40px;">
+                <div class="empty-state-icon"><i class="lucide-inbox"></i></div>
+                <div class="empty-state-title">Veri bulunamadı</div>
+            </div>
+        `;
+        return;
+    }
 
     const table = document.createElement('table');
-    table.classList.add('min-w-full', 'bg-white', 'border', 'border-gray-200', 'shadow-md', 'rounded-lg', 'overflow-hidden');
-
+    
+    // Header
     const thead = document.createElement('thead');
-    thead.classList.add('bg-gray-200', 'text-gray-700');
-
     const headerRow = document.createElement('tr');
-    ['Sıra', 'İsim', 'Ana Kategori', 'Yüzde'].forEach(text => {
+    columns.forEach(col => {
         const th = document.createElement('th');
-        th.innerText = text;
-        th.classList.add('py-3', 'px-6', 'border-b', 'text-left', 'font-medium');
+        th.textContent = col.label;
         headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    top20.forEach((item, index) => {
-        const row = document.createElement('tr');
-        const percent = totalEvents ? ((item.Count / totalEvents) * 100).toFixed(1) + '%' : '0%';
-
-        // Alt kategori: ilk virgülden önceki kelime, ilk harfi büyük
-        let subCategory = '—';
-        if (item.Description) {
-            const firstWord = item.Description.split(',')[0].trim();
-            subCategory = firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
-        }
-
-        const values = [
-            index + 1,
-            item.Title,
-            item.Cat_TR,
-            percent
-        ];
-
-        values.forEach(val => {
-            const td = document.createElement('td');
-            td.innerText = val;
-            td.classList.add('py-3', 'px-6', 'border-b', 'text-left');
-            row.appendChild(td);
-        });
-
-        table.appendChild(row);
-    });
-
-    container.appendChild(table);
-};
-
-
-
-export const renderTopStoresTable = (data, containerId, totalEvents) => {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    // Toplam etkinlik sayısını konsola yazdır
-    console.log('Store-Toplam Etkinlik Sayısı:', totalEvents);
-
-    // Her bir başlık için etkinlik sayısını yazdır
-    data.forEach(item => {
-        console.log(`${item.Title}: ${item.Count} store-etkinlik`); // Count kullanıyoruz
-    });
-
-    const table = document.createElement('table');
-    table.classList.add('min-w-full', 'bg-white', 'border', 'border-gray-200', 'shadow-md', 'rounded-lg', 'overflow-hidden');
-
-    const thead = document.createElement('thead');
-    thead.classList.add('bg-gray-200', 'text-gray-700');
-
-    const title = document.createElement('h3');
-    title.innerText = 'Birimlere Göre Dağılım (İlk 10)';
-    title.classList.add('text-xl', 'font-semibold', 'mb-4');
-    container.appendChild(title);
-
-    const headerRow = document.createElement('tr');
-    ['Sıra', 'İsim', 'Kategori', 'Yüzde'].forEach(text => {
-        const th = document.createElement('th');
-        th.innerText = text;
-        th.classList.add('py-3', 'px-6', 'border-b', 'text-left', 'font-medium');
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
+    // Body
+    const tbody = document.createElement('tbody');
     data.forEach((item, index) => {
         const row = document.createElement('tr');
-        const percent = ((item.Count / totalEvents) * 100).toFixed(1) + '%';
-
-        [index + 1, item.Title, item.Cat_TR, percent].forEach(val => {
+        columns.forEach(col => {
             const td = document.createElement('td');
-            td.innerText = val;
-            td.classList.add('py-3', 'px-6', 'border-b', 'text-left');
+            if (col.render) {
+                td.innerHTML = col.render(item, index);
+            } else {
+                td.textContent = item[col.key] ?? '-';
+            }
+            td.style.cssText = col.style || '';
             row.appendChild(td);
         });
-
-        table.appendChild(row);
-    });
-
-    container.appendChild(table);
-};
-
-
-export const renderFoodPlacesTable = (data, containerId, totalEvents) => {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    // Toplam etkinlik sayısını konsola yazdır
-    console.log('Toplam Etkinlik Sayısı:', totalEvents);
-
-    // Her bir başlık için etkinlik sayısını yazdır
-    data.forEach(item => {
-        console.log(`${item.Title}: ${item.Count} etkinlik`); // Count kullanıyoruz
-    });
-
-    // Veriyi en çok etkinlik sayısına göre sırala
-    const top10 = data.sort((a, b) => b.Count - a.Count).slice(0, 10); // Count ile sıralıyoruz
-
-    const table = document.createElement('table');
-    table.classList.add('min-w-full', 'bg-white', 'border', 'border-gray-200', 'shadow-md', 'rounded-lg', 'overflow-hidden');
-    const thead = document.createElement('thead');
-    thead.classList.add('bg-gray-200', 'text-gray-700');
-    const title = document.createElement('h3');
-    title.innerText = 'Yiyecek & İçecek Yerlerine Göre Dağılım (İlk 10)';
-    title.classList.add('text-xl', 'font-semibold', 'mb-4');
-    container.appendChild(title);
-
-    const headerRow = document.createElement('tr');
-    ['Sıra', 'İsim', 'Kategori', 'Yüzde'].forEach(text => {
-        const th = document.createElement('th');
-        th.innerText = text;
-        th.classList.add('py-3', 'px-6', 'border-b', 'text-left', 'font-medium');
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    top10.forEach((item, index) => {
-        const row = document.createElement('tr');
-
-        // Yüzdeyi toplam etkinlik sayısına göre güvenli bir şekilde hesapla
-        const percent = totalEvents > 0 ? ((item.Count / totalEvents) * 100).toFixed(1) + '%' : '0%'; // Count ile yüzdelik hesaplama
-
-        // Verileri tablo satırına ekle
-        [index + 1, item.Title, item.Cat_TR, percent].forEach(val => {
-            const td = document.createElement('td');
-            td.innerText = val;
-            td.classList.add('py-3', 'px-6', 'border-b', 'text-left');
-            row.appendChild(td);
-        });
-
-        table.appendChild(row);
-    });
-
-    container.appendChild(table);
-};
-
-export const renderServicesTable = (data, containerId, totalEvents) => {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    // Toplam etkinlik sayısını konsola yazdır
-    console.log('Toplam Etkinlik Sayısı:', totalEvents);
-
-    // Her bir başlık için etkinlik sayısını yazdır
-    data.forEach(item => {
-        console.log(`${item.Title}: ${item.Count} etkinlik service`); // Count kullanıyoruz
-    });
-
-    // Veriyi en çok etkinlik sayısına göre sırala
-    const top10 = data.sort((a, b) => b.Count - a.Count).slice(0, 10); // Count ile sıralıyoruz
-
-    const table = document.createElement('table');
-    table.classList.add('min-w-full', 'bg-white', 'border', 'border-gray-200', 'shadow-md', 'rounded-lg', 'overflow-hidden');
-    const thead = document.createElement('thead');
-    thead.classList.add('bg-gray-200', 'text-gray-700');
-    const title = document.createElement('h3');
-    title.innerText = 'Hizmetlere Göre Dağılım (İlk 10)';
-    title.classList.add('text-xl', 'font-semibold', 'mb-4');
-    container.appendChild(title);
-
-    const headerRow = document.createElement('tr');
-    ['Sıra', 'İsim', 'Kategori', 'Yüzde'].forEach(text => {
-        const th = document.createElement('th');
-        th.innerText = text;
-        th.classList.add('py-3', 'px-6', 'border-b', 'text-left', 'font-medium');
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    top10.forEach((item, index) => {
-        const row = document.createElement('tr');
-
-        // Her zaman bir üste yuvarlanmış yüzdeyi hesapla
-        const rawPercent = (item.Count / totalEvents) * 100;
-        const roundedPercent = Math.ceil(rawPercent * 10) / 10;
-        const percent = totalEvents > 0 ? `${roundedPercent.toFixed(1)}%` : '0%';
-
-        // Verileri tablo satırına ekle
-        [index + 1, item.Title, item.Cat_TR, percent].forEach(val => {
-            const td = document.createElement('td');
-            td.innerText = val;
-            td.classList.add('py-3', 'px-6', 'border-b', 'text-left');
-            row.appendChild(td);
-        });
-
-        table.appendChild(row);
-    });
-
-    container.appendChild(table);
-};
-
-export const renderFloorsTable = (data, containerId) => {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    // 📊 En yüksekten en düşüğe sırala (kiosk kullanım yüzdesine göre)
-    data.sort((a, b) => parseFloat(b.kioskUsagePercent) - parseFloat(a.kioskUsagePercent));
-
-    const table = document.createElement('table');
-    table.classList.add('min-w-full', 'bg-white', 'border', 'border-gray-200', 'shadow-md', 'rounded-lg', 'overflow-hidden');
-
-    const thead = document.createElement('thead');
-    thead.classList.add('bg-gray-200', 'text-gray-700');
-
-    const title = document.createElement('h3');
-    title.innerText = 'Katlara Göre Dağılım';
-    title.classList.add('text-xl', 'font-semibold', 'mb-4');
-    container.appendChild(title);
-
-    const headerRow = document.createElement('tr');
-    ['Kat', 'Kiosk Kullanım Yüzdesi', 'Birim Aranma Yüzdesi'].forEach(text => {
-        const th = document.createElement('th');
-        th.innerText = text;
-        th.classList.add('py-3', 'px-6', 'border-b', 'text-left', 'font-medium');
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    data.forEach(item => {
-        const row = document.createElement('tr');
-        const values = [
-            item.floor,
-            item.kioskUsagePercent + '%',
-            item.unitSearchPercent + '%'
-        ];
-
-        values.forEach(val => {
-            const td = document.createElement('td');
-            td.innerText = val;
-            td.classList.add('py-3', 'px-6', 'border-b', 'text-left');
-            row.appendChild(td);
-        });
-
-        table.appendChild(row);
-    });
-
-    container.appendChild(table);
-};
-
-
-
-export const renderKiosksTable = (data, containerId) => {
-    const container = document.getElementById(containerId);
-    container.innerHTML = '';
-
-    const table = document.createElement('table');
-    table.classList.add('min-w-full', 'bg-white', 'border', 'border-gray-200', 'shadow-md', 'rounded-lg', 'overflow-hidden');
-
-    const title = document.createElement('h3');
-    title.innerText = 'Kiosklara Göre Dağılım';
-    title.classList.add('text-xl', 'font-semibold', 'mb-4');
-    container.appendChild(title);
-
-    const thead = document.createElement('thead');
-    thead.classList.add('bg-gray-200', 'text-gray-700');
-    const headerRow = document.createElement('tr');
-    ['Kiosk ID', 'Kat', 'Yüzde'].forEach(text => {
-        const th = document.createElement('th');
-        th.innerText = text;
-        th.classList.add('py-3', 'px-6', 'border-b', 'text-left', 'font-medium');
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-
-    // Toplam action sayısını hesaplayalım
-    const totalActions = data.reduce((total, item) => total + item.actions, 0);
-
-    // Yüzdelik orana göre sıralama işlemi
-    const sortedData = data.map(item => {
-        // Yüzdeyi hesapla
-        const percentage = ((item.actions / totalActions) * 100).toFixed(2);
-        return { ...item, percentage: parseFloat(percentage) }; // item'e yüzdelik oranı ekle
-    }).sort((a, b) => b.percentage - a.percentage); // Yüzdelik oranına göre büyükten küçüğe sıralama
-
-    sortedData.forEach(item => {
-        const row = document.createElement('tr');
-        const values = [
-            item.kiosk,
-            item.floor,
-            `${item.percentage}%` // Yüzdeyi kullan
-        ];
-
-        values.forEach(val => {
-            const td = document.createElement('td');
-            td.innerText = val;
-            td.classList.add('py-3', 'px-6', 'border-b', 'text-left');
-            row.appendChild(td);
-        });
-
         tbody.appendChild(row);
     });
-
     table.appendChild(tbody);
+
+    container.innerHTML = '';
     container.appendChild(table);
+}
+
+function getRankBadge(index) {
+    if (index === 0) return '<span class="rank-badge gold">1</span>';
+    if (index === 1) return '<span class="rank-badge silver">2</span>';
+    if (index === 2) return '<span class="rank-badge bronze">3</span>';
+    return `<span class="rank-badge default">${index + 1}</span>`;
+}
+
+// =====================================================
+// Top Units Table
+// =====================================================
+
+export const renderTopUnitsTable = (data, containerId, totalEvents) => {
+    const top15 = data.sort((a, b) => b.Count - a.Count).slice(0, 15);
+    
+    createModernTable(top15, [
+        { label: '#', render: (_, i) => getRankBadge(i) },
+        { label: 'Birim', key: 'Title' },
+        { label: 'Kategori', key: 'Cat_TR' },
+        { 
+            label: 'Oran', 
+            render: (item) => {
+                const pct = totalEvents ? ((item.Count / totalEvents) * 100).toFixed(1) : 0;
+                return `<span style="font-weight: 600;">${pct}%</span>`;
+            }
+        }
+    ], containerId);
 };
 
+// =====================================================
+// Top Stores Table
+// =====================================================
 
+export const renderTopStoresTable = (data, containerId, totalEvents) => {
+    createModernTable(data, [
+        { label: '#', render: (_, i) => getRankBadge(i) },
+        { label: 'Mağaza', key: 'Title' },
+        { label: 'Kategori', key: 'Cat_TR' },
+        { 
+            label: 'Oran',
+            render: (item) => {
+                const pct = ((item.Count / totalEvents) * 100).toFixed(1);
+                return `${pct}%`;
+            }
+        }
+    ], containerId);
+};
+
+// =====================================================
+// Food Places Table
+// =====================================================
+
+export const renderFoodPlacesTable = (data, containerId, totalEvents) => {
+    const top10 = data.sort((a, b) => b.Count - a.Count).slice(0, 10);
+    
+    createModernTable(top10, [
+        { label: '#', render: (_, i) => getRankBadge(i) },
+        { label: 'Mekan', key: 'Title' },
+        { label: 'Kategori', key: 'Cat_TR' },
+        { 
+            label: 'Oran',
+            render: (item) => {
+                const pct = totalEvents > 0 ? ((item.Count / totalEvents) * 100).toFixed(1) : '0';
+                return `${pct}%`;
+            }
+        }
+    ], containerId);
+};
+
+// =====================================================
+// Services Table
+// =====================================================
+
+export const renderServicesTable = (data, containerId, totalEvents) => {
+    const top10 = data.sort((a, b) => b.Count - a.Count).slice(0, 10);
+    
+    createModernTable(top10, [
+        { label: '#', render: (_, i) => getRankBadge(i) },
+        { label: 'Hizmet', key: 'Title' },
+        { label: 'Kategori', key: 'Cat_TR' },
+        { 
+            label: 'Oran',
+            render: (item) => {
+                const pct = totalEvents > 0 ? Math.ceil((item.Count / totalEvents) * 1000) / 10 : 0;
+                return `${pct.toFixed(1)}%`;
+            }
+        }
+    ], containerId);
+};
+
+// =====================================================
+// Floors Table
+// =====================================================
+
+export const renderFloorsTable = (data, containerId) => {
+    const sorted = data.sort((a, b) => parseFloat(b.kioskUsagePercent) - parseFloat(a.kioskUsagePercent));
+    
+    createModernTable(sorted, [
+        { 
+            label: 'Kat', 
+            render: (item) => `<strong>${item.floor}. Kat</strong>`
+        },
+        { 
+            label: 'Kiosk Kullanım',
+            render: (item) => {
+                const pct = parseFloat(item.kioskUsagePercent);
+                return `<span style="font-weight: 600;">${pct}%</span>`;
+            }
+        },
+        { 
+            label: 'Birim Arama',
+            render: (item) => `${item.unitSearchPercent}%`
+        }
+    ], containerId);
+};
+
+// =====================================================
+// Kiosks Table
+// =====================================================
+
+export const renderKiosksTable = (data, containerId) => {
+    const totalActions = data.reduce((sum, k) => sum + k.actions, 0);
+    const sorted = data.map(item => ({
+        ...item,
+        percentage: ((item.actions / totalActions) * 100).toFixed(2)
+    })).sort((a, b) => b.percentage - a.percentage);
+
+    createModernTable(sorted, [
+        { label: 'Kiosk ID', key: 'kiosk' },
+        { label: 'Kat', key: 'floor' },
+        { 
+            label: 'Kullanım',
+            render: (item) => {
+                const pct = parseFloat(item.percentage);
+                return `<span style="font-weight: 600;">${pct}%</span>`;
+            }
+        }
+    ], containerId);
+};
+
+// =====================================================
+// Touched Events (Legacy Support)
+// =====================================================
+
+export const renderTouchedEvents = (data, containerId) => {
+    createModernTable(data, [
+        { label: 'Seçilen Yer', key: 'label' },
+        { label: 'Seçim Sayısı', key: 'nb_events' }
+    ], containerId);
+};
+
+// =====================================================
+// Data Processing Functions
+// =====================================================
+
+export async function categorizeTitlesWithJson(titles, jsonFilePath) {
+    try {
+        const response = await fetch(jsonFilePath);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const excelData = await response.json();
+        const result = {};
+
+        titles.forEach(title => {
+            const matched = excelData.find(item => item.Title === title);
+            if (matched?.Cat_TR) {
+                if (!result[matched.Cat_TR]) result[matched.Cat_TR] = [];
+                result[matched.Cat_TR].push({ id: matched.ID, title: matched.Title });
+            }
+        });
+
+        return Object.entries(result).map(([category, items]) => ({
+            label: category,
+            nb_events: items.length
+        }));
+    } catch (error) {
+        console.error('Categorization error:', error);
+        return [];
+    }
+}
+
+export async function summarizeTitlesWithDetails(titleCountMap, jsonFilePath, totalEvents) {
+    try {
+        const response = await fetch(jsonFilePath);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const jsonData = await response.json();
+        const result = [];
+        const highlighted = [];
+
+        Object.entries(titleCountMap).forEach(([title, count]) => {
+            const matched = jsonData.find(item => item.Title === title);
+            if (matched) {
+                const entry = {
+                    Title: matched.Title,
+                    Count: count,
+                    Cat_TR: matched.Cat_TR || "Kategori Yok",
+                    Description: matched.Description || "Açıklama Yok"
+                };
+                result.push(entry);
+
+                if (["Stand,Premium", "Premium Stant"].includes(matched.Cat_TR)) {
+                    highlighted.push(entry);
+                }
+            }
+        });
+
+        localStorage.setItem("highlightedEntries", JSON.stringify(highlighted));
+        return result;
+    } catch (error) {
+        console.error('Summary error:', error);
+        return [];
+    }
+}
+
+export async function summarizeTopStoresByCategory(titleEventsMap, jsonFilePath) {
+    try {
+        const response = await fetch(jsonFilePath);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const jsonData = await response.json();
+        const categoriesToInclude = [
+            "Mağaza", "Giyim", "Ayakkabı & Çanta", "Aksesuar & Mücevher", "Elektronik", 
+            "Çocuk", "Kozmetik & Sağlık", "Ev & Dekorasyon", "Lokum & Şekerleme", "Spor",
+            "Market", "Kültür & Eğlence", "Stand", "Stant", "Stand,Premium", "Premium Stant", "Sahne"
+        ];
+
+        const results = [];
+        Object.entries(titleEventsMap).forEach(([title, count]) => {
+            const matched = jsonData.find(item => 
+                item.Title === title && categoriesToInclude.includes(item.Cat_TR)
+            );
+            if (matched) {
+                results.push({
+                    Title: matched.Title,
+                    Count: count,
+                    Cat_TR: matched.Cat_TR,
+                    Description: matched.Description || "Açıklama Yok"
+                });
+            }
+        });
+
+        return results.sort((a, b) => b.Count - a.Count).slice(0, 10);
+    } catch (error) {
+        console.error('Store summary error:', error);
+        return [];
+    }
+}
+
+export async function categorizeEventsByDayAndCategory(dailyData, jsonFilePath) {
+    try {
+        const response = await fetch(jsonFilePath);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const jsonData = await response.json();
+        const categoriesToInclude = [
+            "Mağaza", "Giyim", "Ayakkabı & Çanta", "Aksesuar & Mücevher", "Elektronik",
+            "Çocuk", "Kozmetik & Sağlık", "Ev & Dekorasyon", "Lokum & Şekerleme", "Spor",
+            "Market", "Kültür & Eğlence", "Hizmet", "Otopark", "Stand", "Stant", 
+            "Stand,Premium", "Premium Stant", "Sahne", "Wc", "Yiyecek", "Atm"
+        ];
+
+        const categorizedData = {};
+
+        Object.entries(dailyData).forEach(([date, events]) => {
+            const dailyCategories = {};
+            events.forEach(event => {
+                const matched = jsonData.find(item => 
+                    item.Title === event.label && categoriesToInclude.includes(item.Cat_TR)
+                );
+                if (matched) {
+                    dailyCategories[matched.Cat_TR] = (dailyCategories[matched.Cat_TR] || 0) + event.total_nb_events;
+                }
+            });
+            categorizedData[date] = dailyCategories;
+        });
+
+        return categorizedData;
+    } catch (error) {
+        console.error('Daily categorization error:', error);
+        return {};
+    }
+}
+
+export async function summarizeTopFoodStoresByCategory(titlesWithCounts, jsonFilePath) {
+    try {
+        const response = await fetch(jsonFilePath);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const jsonData = await response.json();
+        const combined = titlesWithCounts.reduce((acc, item) => {
+            acc[item.eventName] = (acc[item.eventName] || 0) + item.nbEvents;
+            return acc;
+        }, {});
+
+        const categories = ["Restoran & Cafe", "Fast Food", "Yiyecek"];
+        const results = [];
+
+        Object.entries(combined).forEach(([name, count]) => {
+            const matched = jsonData.find(item => 
+                item.Title === name && categories.includes(item.Cat_TR)
+            );
+            if (matched) {
+                results.push({
+                    Title: matched.Title,
+                    Count: count,
+                    Cat_TR: matched.Cat_TR,
+                    Description: matched.Description || "Açıklama Yok"
+                });
+            }
+        });
+
+        return results.sort((a, b) => b.Count - a.Count).slice(0, 10);
+    } catch (error) {
+        console.error('Food summary error:', error);
+        return [];
+    }
+}
+
+export async function summarizeTopServicesByCategory(titlesWithCounts, jsonFilePath) {
+    try {
+        const response = await fetch(jsonFilePath);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const jsonData = await response.json();
+        const combined = titlesWithCounts.reduce((acc, item) => {
+            acc[item.eventName] = (acc[item.eventName] || 0) + item.nbEvents;
+            return acc;
+        }, {});
+
+        const categories = ["Hizmetler", "Hizmet Mağazaları", "Hizmet", "Otopark", "Wc", "WC", "Yiyecek", "Giriş", "Atm", "Diğer"];
+        const results = [];
+
+        Object.entries(combined).forEach(([name, count]) => {
+            const matched = jsonData.find(item => 
+                item.Title === name && categories.includes(item.Cat_TR)
+            );
+            if (matched) {
+                results.push({
+                    Title: matched.Title,
+                    Count: count,
+                    Cat_TR: matched.Cat_TR,
+                    Description: matched.Description || "Açıklama Yok"
+                });
+            }
+        });
+
+        // Name corrections
+        const corrections = {
+            "Car Park (Hall 7-8)": "Otopark (Hall 7-8)",
+            "Entrance (Hall 11A)": "Giriş (Hall 11A)",
+            "Entrance (Hall 11)": "Giriş (Hall 11)",
+            "Car Park Batı": "Otopark Batı",
+            "Entrance (Atrium)": "Giriş (Atrium)",
+            "Mescid - Masjid": "Mescid",
+            "Medya Köşesi - Media Corner": "Medya Köşesi"
+        };
+
+        return results
+            .map(item => ({
+                ...item,
+                Title: corrections[item.Title] || item.Title
+            }))
+            .sort((a, b) => b.Count - a.Count)
+            .slice(0, 10);
+    } catch (error) {
+        console.error('Services summary error:', error);
+        return [];
+    }
+}
+
+// =====================================================
+// Campaign Data Processing
+// =====================================================
+
+export function cleanCampaignData(data) {
+    const floorMap = {
+        "-3": "-3. kat", "-2": "-2. kat", "-1": "-1. kat",
+        "0": "0. kat", "1": "1. kat", "2": "2. kat", "3": "3. kat"
+    };
+
+    return data.map(item => {
+        const label = item.label;
+        const match = label.match(/k-?(\d+)/i);
+        let number = match ? parseInt(match[1], 10) : null;
+
+        let floorKey;
+        if (label.includes('-')) {
+            floorKey = number >= 300 ? "-3" : number >= 200 ? "-2" : "-1";
+        } else {
+            floorKey = number < 100 ? "0" : number < 200 ? "1" : number < 300 ? "2" : "3";
+        }
+
+        return {
+            kiosk: label,
+            actions: item.nb_actions,
+            floor: floorMap[floorKey] || "Bilinmeyen"
+        };
+    });
+}
+
+export function getTotalActionsByFloor(data) {
+    const totals = { "-3": 0, "-2": 0, "-1": 0, "0": 0, "1": 0, "2": 0, "3": 0 };
+
+    data.forEach(item => {
+        const match = item.label.match(/k-?(\d+)/i);
+        let number = match ? parseInt(match[1], 10) : null;
+
+        let floorKey;
+        if (item.label.includes('-')) {
+            floorKey = number >= 300 ? "-3" : number >= 200 ? "-2" : "-1";
+        } else {
+            floorKey = number < 100 ? "0" : number < 200 ? "1" : number < 300 ? "2" : "3";
+        }
+
+        if (totals[floorKey] !== undefined) {
+            totals[floorKey] += item.nb_actions;
+        }
+    });
+
+    return totals;
+}
+
+export async function findEventFloor(titlesWithCounts, filepath) {
+    try {
+        const response = await fetch(filepath);
+        const floorData = await response.json();
+
+        const eventFloorMap = floorData.reduce((acc, item) => {
+            acc[item.Title.trim()] = item.Floor;
+            return acc;
+        }, {});
+
+        const results = titlesWithCounts
+            .map(item => ({
+                eventName: item.eventName,
+                floor: eventFloorMap[item.eventName.trim()] || "Bilinmiyor",
+                nbEvents: item.nbEvents
+            }))
+            .filter(item => item.floor !== "Bilinmiyor");
+
+        return results.reduce((acc, item) => {
+            acc[item.floor] = (acc[item.floor] || 0) + item.nbEvents;
+            return acc;
+        }, {});
+    } catch (error) {
+        console.error('Floor finding error:', error);
+        return {};
+    }
+}
+
+// =====================================================
+// Categorized Units
+// =====================================================
+
+export async function categorizeUnitsWithJson(titleCountMap, jsonFilePath) {
+    try {
+        const response = await fetch(jsonFilePath);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const categorizedData = await response.json();
+        const results = {};
+
+        Object.entries(categorizedData).forEach(([category, units]) => {
+            results[category] = 0;
+            units.forEach(unit => {
+                if (titleCountMap[unit]) {
+                    results[category] += titleCountMap[unit];
+                }
+            });
+        });
+
+        return Object.entries(results)
+            .filter(([, count]) => count > 0)
+            .map(([category, count]) => ({ category, count }))
+            .sort((a, b) => b.count - a.count);
+    } catch (error) {
+        console.error('Unit categorization error:', error);
+        return [];
+    }
+}
+
+export const renderCategorizedUnitsList = (data, containerId) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (!data?.length) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const total = data.reduce((sum, item) => sum + item.count, 0);
+    const top5 = data.slice(0, 5);
+
+    container.innerHTML = `
+        <div style="padding: 16px;">
+            <h4 style="margin-bottom: 12px; color: var(--color-text-primary); font-weight: 600;">
+                Top 5 İlgi Gösterilen Ürün Grupları
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${top5.map((item, i) => {
+                    const pct = ((item.count / total) * 100).toFixed(1);
+                    return `
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            ${getRankBadge(i)}
+                            <span style="flex: 1; color: var(--color-text-secondary);">${item.category}</span>
+                            <span style="font-weight: 600; color: var(--color-accent-purple);">${pct}%</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+};

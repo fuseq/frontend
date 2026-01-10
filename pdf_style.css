@@ -1,330 +1,683 @@
+/* =====================================================
+   INMAPPER ANALYTICS - PDF Report Styles
+   Professional print-ready design
+   ===================================================== */
+
+/* Variables */
+:root {
+  --pdf-bg: #ffffff;
+  --pdf-text: #1a1a2e;
+  --pdf-text-secondary: #4a5568;
+  --pdf-text-muted: #718096;
+  --pdf-border: #e2e8f0;
+  --pdf-accent: #6366f1;
+  --pdf-accent-light: #eef2ff;
+  --pdf-success: #10b981;
+  --pdf-warning: #f59e0b;
+  
+  --pdf-font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --pdf-page-width: 210mm;
+  --pdf-page-height: 297mm;
+  --pdf-margin: 10mm;
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 11pt;
+}
+
 body {
-    background: #e5e7eb;
-    font-family: sans-serif;
+  font-family: var(--pdf-font);
+  background: #f1f5f9;
+  color: var(--pdf-text);
+  line-height: 1.6;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
-.navbar {
-    display: flex;
-    justify-content: center;
-    /* Center all items horizontally */
-    align-items: center;
-    /* Center the items vertically */
-    padding: 10px 20px;
-    /* Add some padding to the navbar */
-    width: 100%;
-    /* Make sure navbar takes up the full width */
+/* =====================================================
+   Print Header (Screen Only)
+   ===================================================== */
+
+.print-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
 }
 
-.logo-container {
-    text-align: left;
-    /* Align logo to the left */
+.header-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.logo {
-    max-height: 50px;
-    /* Adjust logo size */
-    width: auto;
-    /* Maintain aspect ratio */
+.header-left {
+  display: flex;
+  align-items: center;
 }
 
-.form-container {
-    display: flex;
-    justify-content: center;
-    flex-grow: 1;
-    padding: 0 2vw;
-
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s;
 }
 
-#date-form input[type="date"],
-#date-form button {
-    padding: 6px 10px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    font-size: 14px;
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-#date-form button {
-    background-color: #3498db;
-    color: white;
-    border: none;
-    transition: background-color 0.2s;
+.header-center h1 {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-#date-form button:hover {
-    background-color: #2980b9;
+.header-right {
+  display: flex;
+  align-items: center;
 }
 
-#date-form button[type="submit"] {
-    background-color: #2ecc71;
+.print-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-#date-form button[type="submit"]:hover {
-    background-color: #27ae60;
+.print-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
 
-#date-form label {
-    font-weight: bold;
+.print-btn i {
+  font-size: 18px;
 }
 
-.dropdown-container {
-    position: relative;
-    display: inline-block;
-    max-width: 100%;
-    /* Prevent the container from expanding beyond screen width */
+/* =====================================================
+   PDF Container
+   ===================================================== */
+
+.pdf-container {
+  max-width: var(--pdf-page-width);
+  margin: 80px auto 40px;
+  padding: 20px;
 }
 
-/* Dropdown button style */
-.dropdown-btn {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 20px;
-    font-size: 16px;
-    border: none;
-    cursor: pointer;
-    border-radius: 4px;
-    white-space: nowrap;
-    /* Prevent text wrapping */
-    margin-left: 40px;
-    /* Sola kaydırma, değeri ihtiyaca göre değiştirebilirsiniz */
+/* =====================================================
+   PDF Page
+   ===================================================== */
+
+.pdf-page {
+  width: var(--pdf-page-width);
+  min-height: var(--pdf-page-height);
+  background: var(--pdf-bg);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+  border-radius: 4px;
+  overflow: hidden;
+  page-break-after: always;
+  page-break-inside: avoid;
 }
 
-/* Dropdown content style (hidden by default) */
-.dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #f9f9f9;
-    min-width: 160px;
-    max-height: 300px;
-    /* Add a max-height */
-    overflow-y: auto;
-    /* Make it scrollable */
-    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
-    z-index: 1;
-    border-radius: 4px;
-    width: 100%;
-    /* Ensure it does not overflow horizontally */
-    left: 0;
-    /* Align it with the button */
+/* =====================================================
+   Cover Page
+   ===================================================== */
+
+.cover-page {
+  display: flex;
+  flex-direction: column;
 }
 
-header {
-    background-color: #333;
-    /* Dark background color for the navbar */
+.cover-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--pdf-margin);
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  position: relative;
 }
 
-/* Dropdown links */
-.dropdown-content a {
-    color: black;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: block;
+.cover-header {
+  display: flex;
+  justify-content: flex-end;
 }
 
-/* Hover effect on dropdown links */
-.dropdown-content a:hover {
-    background-color: #f1f1f1
+.inmapper-logo {
+  height: 40px;
+  width: auto;
 }
 
-/* When the dropdown content is visible, check position */
-.dropdown-container.open .dropdown-content {
-    display: block;
+.cover-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 0;
 }
 
-/* Make sure the dropdown stays within viewport */
-@media (max-height: 600px) {
-    .dropdown-content {
-        max-height: 200px;
-        /* Adjust for smaller screens */
-    }
+.site-logo {
+  max-width: 200px;
+  max-height: 120px;
+  object-fit: contain;
+  margin-bottom: 40px;
 }
 
-.a4-page {
-    width: 210mm;
-    height: 275mm;
+.cover-title h1 {
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--pdf-accent);
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+
+.cover-title h2 {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--pdf-text-secondary);
+  margin-bottom: 32px;
+}
+
+.cover-date {
+  display: inline-block;
+  padding: 12px 32px;
+  background: var(--pdf-accent-light);
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pdf-accent);
+}
+
+.cover-footer {
+  text-align: center;
+  position: relative;
+}
+
+.watermark {
+  max-width: 150px;
+  opacity: 0.3;
+  margin-bottom: 16px;
+}
+
+.copyright {
+  font-size: 10px;
+  color: var(--pdf-text-muted);
+}
+
+/* =====================================================
+   Page Header
+   ===================================================== */
+
+.page-header {
+  padding: 20px var(--pdf-margin);
+  border-bottom: 2px solid var(--pdf-border);
+  background: #fafafa;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pdf-text);
+}
+
+.page-title i,
+.page-title svg {
+  color: var(--pdf-accent);
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.back-btn svg,
+.print-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* =====================================================
+   Page Content
+   ===================================================== */
+
+.page-content {
+  padding: var(--pdf-margin);
+}
+
+/* =====================================================
+   Summary Card
+   ===================================================== */
+
+.summary-card {
+  background: white;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 24px;
+}
+
+.summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.summary-list {
+  background: white;
+  border-radius: 8px;
+  padding: 16px 20px;
+  border: 1px solid var(--pdf-border);
+}
+
+.summary-list li {
+  padding: 10px 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--pdf-text-secondary);
+  list-style-type: disc;
+  list-style-position: outside;
+  margin-left: 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.summary-list li:last-child {
+  border-bottom: none;
+}
+
+.summary-list li:empty {
+  display: none !important;
+}
+
+.summary-list li strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.summary-list li .language-list {
+  display: block;
+  margin-top: 8px;
+  margin-left: 10px;
+}
+
+.summary-list li .language-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.summary-list li .language-item .flag-emoji {
+  font-size: 16px;
+  line-height: 1;
+  margin-right: 4px;
+}
+
+.summary-list li .units-list {
+  display: block;
+  margin-top: 8px;
+  margin-left: 10px;
+}
+
+.summary-list li .unit-item {
+  display: block;
+  padding: 3px 0;
+}
+
+/* =====================================================
+   Chart Sections
+   ===================================================== */
+
+.chart-section {
+  margin-bottom: 16px;
+}
+
+.chart-section.half {
+  width: 48%;
+}
+
+.chart-section.full {
+  width: 100%;
+}
+
+/* Stacked charts layout - vertical, fills page */
+.page-content.stacked-charts {
+  display: flex;
+  flex-direction: column;
+  height: calc(var(--pdf-page-height) - 80px); /* Full page minus header */
+  padding: 12px var(--pdf-margin);
+  gap: 12px;
+}
+
+.chart-section.full-height {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chart-section.full-height .chart-wrapper {
+  flex: 1;
+  height: auto !important;
+  min-height: 0;
+}
+
+.charts-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pdf-text);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--pdf-accent);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.chart-wrapper {
+  height: 200px;
+  position: relative;
+}
+
+.chart-wrapper.large {
+  height: 300px;
+}
+
+.chart-wrapper.pie {
+  height: 260px;
+}
+
+.chart-wrapper.stacked {
+  height: 160px;
+}
+
+.chart-wrapper.equal {
+  height: 100%;
+  flex: 1;
+  min-height: 180px;
+}
+
+.chart-wrapper canvas {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* =====================================================
+   Table Sections
+   ===================================================== */
+
+.table-section {
+  width: 100%;
+}
+
+.table-section table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.table-section thead {
+  background: var(--pdf-accent);
+}
+
+.table-section th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.table-section td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--pdf-border);
+  color: var(--pdf-text-secondary);
+}
+
+.table-section tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.table-section tbody tr:hover {
+  background: var(--pdf-accent-light);
+}
+
+/* Rank badges for PDF */
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rank-badge.gold {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1a2e;
+}
+
+.rank-badge.silver {
+  background: linear-gradient(135deg, #cbd5e1, #94a3b8);
+  color: #1a1a2e;
+}
+
+.rank-badge.bronze {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1a1a2e;
+}
+
+.rank-badge.default {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+/* Progress bars for PDF */
+.progress-bar {
+  width: 60px;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--pdf-accent), #818cf8);
+  border-radius: 3px;
+}
+
+/* =====================================================
+   Categorized Units
+   ===================================================== */
+
+.categorized-units {
+  background: #f8fafc;
+  border: 1px solid var(--pdf-border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.categorized-units h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pdf-text);
+  margin-bottom: 16px;
+}
+
+/* =====================================================
+   Print Styles
+   ===================================================== */
+
+@media print {
+  /* Hide screen-only elements */
+  .no-print,
+  .print-header {
+    display: none !important;
+  }
+  
+  /* Reset body */
+  body {
     background: white;
-    margin: 16px auto;
-
-    box-sizing: border-box;
-
-    display: flex;
-    flex-direction: column;
-    /* Dikeyde sıralama */
-    justify-content: flex-start;
-    /* İçeriği yukarıya hizala */
-    align-items: stretch;
-    /* Kartın tüm genişliği kapsaması */
-}
-
-#top-units-table-container {
-    width: 100%;
-    overflow: hidden;
-    /* Hide the scrollbar */
-}
-
-#top-units-table-container table {
-    width: 100%;
-    font-size: 8px;
-    /* Smaller font size */
-    border-collapse: collapse;
-    table-layout: fixed;
-}
-
-#top-units-table-container th,
-#top-units-table-container td {
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-}
-
-.card>* {
-    margin-bottom: 50px;
-    /* Her öğe arasına 16px boşluk ekler */
-}
-
-/* Son öğeye boşluk eklememek için */
-.card>*:last-child {
-    margin-bottom: 0;
-}
-
-
-.card {
-    width: 100%;
-    height: 100%;
-    /* Sayfa yüksekliğini tam kapsar */
-    background-color: #f9f9f9;
-    padding: 24px;
-    border: none;
-
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-@media print {
-    .flag-icon {
-        display: inline-block !important;
-        -webkit-print-color-adjust: exact;
-        /* Chrome, Safari */
-        color-adjust: exact;
-        /* Firefox */
-        background-size: contain !important;
-        background-repeat: no-repeat !important;
-        width: 1.33333333em;
-        height: 1em;
-        line-height: 1em;
-        vertical-align: middle;
-    }
-}
-
-#donut-container {
-    width: 60%;
-    margin: 0 auto;
-}
-
-#operating-systems, #language-distribution {
-  width: 80%;
-  max-width: 500px;
-  height: 500px;
-  margin: 0 auto; /* Yatayda ortalamak için auto kullanıyoruz */
-}
-
-.header-title {
-    font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 16px;
-}
-
-.logo-top-right {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 150px;
-    /* Adjust the size as needed */
-    height: auto;
-}
-
-.logo-center {
-    width: 200px;
-    height: auto;
-    margin-left: 50px;
-}
-
-.text-container {
-    margin-top: 0;
-    padding-top: 0;
-    line-height: 1;
-    text-align: left;
-    /* sola hizalama */
-    align-items: flex-start;
-    /* sola hizalama için flex konteynerlerde */
-    display: flex;
-    flex-direction: column;
-    margin-left: 50px;
-}
-
-.date-info {
-    font-size: 16px;
-    color: #555;
-    margin-top: 10px;
-}
-
-.filigran {
-    position: absolute;
-    bottom: 50px;
-    left: 50%;
-    transform: translateX(-50%);
-    opacity: 0.1;
-    /* Düşük opaklık = filigran efekti */
-    width: 500px;
-    /* Genişlik ayarı, gerekirse değiştir */
-    pointer-events: none;
-    /* Tıklanabilir olmasın */
-}
-
-.big-text {
-    font-size: 48px;
-    font-weight: bold;
     margin: 0;
-    text-align: left;
-}
-
-.small-text {
-    font-size: 24px;
-    font-weight: normal;
-    margin-top: 8px;
-    /* Daha yakın görünüm için küçültüldü */
-    text-align: left;
-}
-
-
-/* Son öğeye boşluk eklememek için */
-.cover-card>*:last-child {
-    margin-bottom: 0;
-}
-
-
-.cover-card {
+    padding: 0;
+  }
+  
+  /* Reset container */
+  .pdf-container {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Page setup */
+  .pdf-page {
     width: 100%;
-    height: 100%;
-    /* Sayfa yüksekliğini tam kapsar */
-    background-color: #f9f9f9;
-    padding: 24px;
-    border: none;
-
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
+    height: 100vh;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+  
+  .pdf-page:last-child {
+    page-break-after: auto;
+  }
+  
+  /* Stacked charts print fix */
+  .page-content.stacked-charts {
+    height: calc(100vh - 60px);
+    padding: 8mm;
+  }
+  
+  .chart-section.full-height {
+    flex: 1;
+    min-height: 0;
+  }
+  
+  .chart-wrapper.equal {
+    height: 100% !important;
+    min-height: 120px;
+  }
+  
+  /* Ensure colors print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Table fixes */
+  .table-section thead {
+    background: var(--pdf-accent) !important;
+  }
+  
+  .table-section th {
+    color: white !important;
+  }
+  
+  /* Chart fixes */
+  .chart-wrapper {
+    break-inside: avoid;
+  }
+  
+  .chart-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  /* Cover page */
+  .cover-page {
+    height: 100vh;
+  }
 }
 
+/* A4 Page size for print */
+@page {
+  size: A4;
+  margin: 10mm;
+}
 
-@media print {
+/* =====================================================
+   Responsive (Screen Preview)
+   ===================================================== */
 
-    header,
-    .navbar,
-    .logo-container,
-    .dropdown-container,
-    #date-form {
-        display: none !important;
-        /* Navbar ve form tamamen gizlenir */
-    }
+@media screen and (max-width: 800px) {
+  .pdf-container {
+    padding: 10px;
+    margin-top: 70px;
+  }
+  
+  .pdf-page {
+    width: 100%;
+    min-height: auto;
+    margin-bottom: 20px;
+  }
+  
+  .charts-row {
+    flex-direction: column;
+  }
+  
+  .chart-section.half {
+    width: 100%;
+  }
+  
+  .header-center h1 {
+    display: none;
+  }
+  
+  .back-btn span {
+    display: none;
+  }
 }

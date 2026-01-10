@@ -1,3 +1,8 @@
+/**
+ * Inmapper Analytics Dashboard
+ * Modern, modular JavaScript architecture
+ */
+
 import {
     renderFromToEvents,
     renderFromToEventsByStart,
@@ -23,169 +28,683 @@ import {
     renderFloorsTable,
     renderKiosksTable,
     renderStoreCategoriesAreaChart,
-    categorizeTitlesWithJson
+    categorizeTitlesWithJson,
+    categorizeUnitsWithJson,
+    renderCategorizedUnitsList
 } from './dataHandlers.js';
 
-let globalSiteId = ''; // 🌐 Varsayılan site ID
+// =====================================================
+// Configuration
+// =====================================================
 
+const CONFIG = {
+    API_BASE_URL: 'http://localhost:3001/api',
+    DEBOUNCE_DELAY: 300,
+    TOAST_DURATION: 4000,
+    ANIMATION_DURATION: 300
+};
 
-document.addEventListener('DOMContentLoaded', () => {
+// =====================================================
+// State Management
+// =====================================================
 
-    // Sayfa yüklendiğinde selectedSiteId'yi kontrol et
-    const storedSiteId = localStorage.getItem('selectedSiteId');
-    if (storedSiteId) {
-        globalSiteId = storedSiteId;
-        // Eğer startDate ve endDate mevcutsa, onları al
-        const storedStartDate = localStorage.getItem('startDate');
-        const storedEndDate = localStorage.getItem('endDate');
-        if (storedStartDate && storedEndDate) {
-            fetchAllData(storedStartDate, storedEndDate);
-        } else {
-            // Eğer startDate ve endDate yoksa, selectedRange değerini al ve verileri yükle
-            const selectedRange = localStorage.getItem('selectedRange');
-            if (selectedRange) {
-                handleQuickRange(parseInt(selectedRange));
+const state = {
+    globalSiteId: '',
+    isLoading: false,
+    currentDateRange: null,
+    sites: []
+};
+
+// =====================================================
+// Utility Functions
+// =====================================================
+
+const utils = {
+    // Show toast notification
+    showToast(message, type = 'info', title = '') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icons = {
+            success: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+            error: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+            warning: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+            info: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
+        };
+
+        toast.innerHTML = `
+            <span class="toast-icon">${icons[type] || icons.info}</span>
+            <div class="toast-content">
+                ${title ? `<div class="toast-title">${title}</div>` : ''}
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        `;
+
+        container.appendChild(toast);
+
+        // Auto remove
+        setTimeout(() => {
+            toast.style.animation = 'slideIn 0.3s ease reverse';
+            setTimeout(() => toast.remove(), 300);
+        }, CONFIG.TOAST_DURATION);
+
+        // Manual close
+        toast.querySelector('.toast-close').addEventListener('click', () => {
+            toast.remove();
+        });
+    },
+
+    // Show/hide loading overlay
+    setLoading(isLoading) {
+        state.isLoading = isLoading;
+        const overlay = document.getElementById('loadingOverlay');
+        const fetchBtn = document.getElementById('fetchDataBtn');
+        
+        if (overlay) {
+            overlay.classList.toggle('active', isLoading);
+        }
+        
+        if (fetchBtn) {
+            fetchBtn.classList.toggle('loading', isLoading);
+            fetchBtn.disabled = isLoading;
+        }
+    },
+
+    // Format number with locale
+    formatNumber(num) {
+        if (typeof num !== 'number') return num;
+        return num.toLocaleString('tr-TR');
+    },
+
+    // Format date
+    formatDate(date) {
+        return new Date(date).toLocaleDateString('tr-TR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    },
+
+    // Debounce function
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    },
+
+    // Safe localStorage
+    storage: {
+        get(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : defaultValue;
+            } catch {
+                return defaultValue;
+            }
+        },
+        set(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {
+                console.error('Storage error:', e);
+            }
+        },
+        remove(key) {
+            localStorage.removeItem(key);
+        }
+    }
+};
+
+// =====================================================
+// API Functions
+// =====================================================
+
+const api = {
+    async fetch(endpoint, params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const url = `${CONFIG.API_BASE_URL}${endpoint}${queryString ? '?' + queryString : ''}`;
+        
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`API Error [${endpoint}]:`, error);
+            throw error;
+        }
+    },
+
+    async getSites() {
+        return await this.fetch('/sites');
+    },
+
+    async getUserStatistics(params) {
+        return await this.fetch('/user-statistics', params);
+    },
+
+    async getFromToNames(params) {
+        return await this.fetch('/events/from-to-names', params);
+    },
+
+    async getSearchedEvents(params) {
+        return await this.fetch('/events/searched', params);
+    },
+
+    async getOsDistribution(params) {
+        return await this.fetch('/os-distribution', params);
+    },
+
+    async getSummaryCounts(params) {
+        return await this.fetch('/events/summary-counts', params);
+    },
+
+    async getLanguageDistribution(params) {
+        return await this.fetch('/user-language-distribution', params);
+    },
+
+    async getDailyCount(params) {
+        return await this.fetch('/events/daily-count', params);
+    },
+
+    async getHourlyVisits(params) {
+        return await this.fetch('/hourly-visits', params);
+    },
+
+    async getTouchedEvents(params) {
+        return await this.fetch('/events/touched', params);
+    },
+
+    async getInitializedEvents(params) {
+        return await this.fetch('/events/initialized', params);
+    },
+
+    async getCampaigns(params) {
+        return await this.fetch('/campaigns', params);
+    },
+
+    async getSearchedDaily(params) {
+        return await this.fetch('/events/searched-daily', params);
+    }
+};
+
+// =====================================================
+// UI Update Functions
+// =====================================================
+
+const ui = {
+    // Device type mapping
+    deviceMap: {
+        desktop: 'Masaüstü',
+        mobile: 'Mobil',
+        tablet: 'Tablet',
+        other: 'Diğer'
+    },
+
+    // Update stat cards
+    updateStatCards(data) {
+        // Total visits
+        const totalVisitsCard = document.getElementById('total-visits');
+        if (totalVisitsCard) {
+            const value = totalVisitsCard.querySelector('.stat-value');
+            if (value) value.textContent = utils.formatNumber(data.totalVisits || 0);
+        }
+
+        // Bounce rate / Interest
+        const bounceCard = document.getElementById('bounce-rate');
+        if (bounceCard) {
+            const value = bounceCard.querySelector('.stat-value');
+            if (value) {
+                const rate = parseFloat(data.bounceRate);
+                let interest = 'Veri yok';
+                if (!isNaN(rate)) {
+                    if (rate < 30) interest = 'Mükemmel';
+                    else if (rate < 50) interest = 'İyi';
+                    else if (rate < 70) interest = 'Ortalama';
+                    else interest = 'Düşük';
+                }
+                value.textContent = interest;
             }
         }
-    }
 
-    // globalSiteId değiştiğinde form elemanlarını aktif hale getirme
-    function enableFormElements() {
-        const inputs = document.querySelectorAll('#date-form input, #date-form button');
-        inputs.forEach(input => {
-            input.disabled = false;
-        });
-    }
-
-
-
-
-
-    const form = document.getElementById('date-form');
-
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
-
-        localStorage.setItem('startDate', startDate);
-        localStorage.setItem('endDate', endDate);
-        localStorage.removeItem('selectedRange');
-
-        fetchAllData(startDate, endDate);
-    });
-
-    // Hızlı seçim butonları
-    document.getElementById('btn-1g').addEventListener('click', () => {
-        localStorage.setItem('selectedRange', '1');
-        localStorage.removeItem('startDate');
-        localStorage.removeItem('endDate');
-        handleQuickRange(1);
-    });
-
-    document.getElementById('btn-1h').addEventListener('click', () => {
-        localStorage.setItem('selectedRange', '7');
-        localStorage.removeItem('startDate');
-        localStorage.removeItem('endDate');
-        handleQuickRange(7);
-    });
-
-    document.getElementById('btn-1a').addEventListener('click', () => {
-        localStorage.setItem('selectedRange', '30');
-        localStorage.removeItem('startDate');
-        localStorage.removeItem('endDate');
-        handleQuickRange(30);
-    });
-
-    document.getElementById('btn-1y').addEventListener('click', () => {
-        localStorage.setItem('selectedRange', '365');
-        localStorage.removeItem('startDate');
-        localStorage.removeItem('endDate');
-        handleQuickRange(365);
-    });
-
-    const dropdownContent = document.getElementById('site-dropdown');
-
-    // API'den site verilerini almak
-    fetch('http://localhost:3001/api/sites')
-        .then(response => response.json())
-        .then(sites => {
-            sites.forEach(site => {
-                const siteItem = document.createElement('a');
-                siteItem.href = '#';
-                siteItem.textContent = site.name;
-
-                // Stil sınıfı ekleyin (isteğe bağlı, CSS kısmı aşağıda)
-                siteItem.classList.add('dropdown-item');
-
-                siteItem.addEventListener('click', function () {
-                    // Önce tüm item'lardan 'selected' sınıfını kaldır
-                    document.querySelectorAll('.dropdown-item').forEach(item => {
-                        item.classList.remove('selected');
-                    });
-
-                    // Tıklanan elemana 'selected' sınıfı ekle
-                    siteItem.classList.add('selected');
-
-                    localStorage.setItem('selectedSiteId', site.id);
-                    localStorage.removeItem('startDate');
-                    localStorage.removeItem('endDate');
-                    localStorage.removeItem('selectedRange');
-
-                    globalSiteId = site.id;
-                    enableFormElements();
-
-                    const startDate = document.getElementById('startDate').value;
-                    const endDate = document.getElementById('endDate').value;
-                    fetchAllData(startDate, endDate);
-                });
-
-                dropdownContent.appendChild(siteItem);
-            });
-        })
-        .catch(error => {
-            console.error('Veri alırken bir hata oluştu:', error);
-        });
-
-    const dropdownBtn = document.querySelector('.dropdown-btn');
-    dropdownBtn.addEventListener('click', function () {
-        dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
-    });
-
-    window.addEventListener('click', function (event) {
-        if (!event.target.matches('.dropdown-btn')) {
-            dropdownContent.style.display = 'none';
+        // Most visited device
+        const deviceCard = document.getElementById('most-visited-device');
+        if (deviceCard) {
+            const value = deviceCard.querySelector('.stat-value');
+            if (value) {
+                const deviceType = data.mostVisitedDeviceType?.toLowerCase();
+                value.textContent = this.deviceMap[deviceType] || data.mostVisitedDeviceType || '-';
+            }
         }
+
+        // Average time
+        const avgTimeCard = document.getElementById('avg-time');
+        if (avgTimeCard) {
+            const value = avgTimeCard.querySelector('.stat-value');
+            if (value) {
+                const seconds = parseInt(data.avgTimeOnPage) || 0;
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+                value.textContent = minutes > 0 
+                    ? `${minutes}dk ${remainingSeconds}sn` 
+                    : `${remainingSeconds} sn`;
+            }
+        }
+
+        // Store in localStorage for other uses
+        utils.storage.set('totalVisits', data.totalVisits);
+        utils.storage.set('bounceRate', data.bounceRate);
+        utils.storage.set('mostVisitedDeviceType', data.mostVisitedDeviceType);
+        utils.storage.set('avgTimeOnPage', data.avgTimeOnPage);
+    },
+
+    // Set active quick range button
+    setActiveQuickRange(days) {
+        document.querySelectorAll('.quick-range-btn').forEach(btn => {
+            const btnDays = parseInt(btn.dataset.days);
+            btn.classList.toggle('active', btnDays === days);
+        });
+    },
+
+    // Update selected site name
+    updateSelectedSiteName(name) {
+        const el = document.getElementById('selectedSiteName');
+        if (el) el.textContent = name || 'Site Seç';
+    }
+};
+
+// =====================================================
+// Data Fetching & Processing
+// =====================================================
+
+async function fetchAllData(startDate, endDate, siteId = state.globalSiteId) {
+    if (!siteId) {
+        utils.showToast('Lütfen önce bir site seçin', 'warning', 'Uyarı');
+        return;
+    }
+
+    const params = { siteId };
+    if (startDate && endDate) {
+        params.startDate = startDate;
+        params.endDate = endDate;
+    }
+
+    utils.setLoading(true);
+
+    try {
+        // Parallel API calls for better performance
+        const [
+            userStats,
+            fromToData,
+            searchedData,
+            osData,
+            summaryData,
+            languageData,
+            dailyData,
+            hourlyData,
+            campaignData
+        ] = await Promise.allSettled([
+            api.getUserStatistics(params),
+            api.getFromToNames(params),
+            api.getSearchedEvents(params),
+            api.getOsDistribution(params),
+            api.getSummaryCounts(params),
+            api.getLanguageDistribution(params),
+            api.getDailyCount(params),
+            api.getHourlyVisits(params),
+            api.getCampaigns(params)
+        ]);
+
+        // Process user statistics
+        if (userStats.status === 'fulfilled') {
+            ui.updateStatCards(userStats.value);
+        }
+
+        // Process from-to events
+        if (fromToData.status === 'fulfilled') {
+            renderFromToEvents(fromToData.value, 'from-to-events');
+            renderFromToEventsByStart(fromToData.value, 'start-to-end-events');
+        }
+
+        // Process searched events
+        if (searchedData.status === 'fulfilled') {
+            renderSearchedEvents(searchedData.value, 'searched-events');
+            renderTop5SearchedTerms(searchedData.value, 'top-searchs');
+            
+            // Process category data
+            await processCategoryData(searchedData.value, params);
+        }
+
+        // Process OS distribution
+        if (osData.status === 'fulfilled') {
+            renderOperatingSystemDistribution(osData.value, 'operating-systems');
+        }
+
+        // Process summary counts
+        if (summaryData.status === 'fulfilled') {
+            const data = summaryData.value;
+            utils.storage.set('fromTo', data.fromTo);
+            utils.storage.set('searched', data.searched);
+            utils.storage.set('touched', data.touched);
+            utils.storage.set('initialized', data.initialized);
+            utils.storage.set('total', data.total);
+        }
+
+        // Process language distribution
+        if (languageData.status === 'fulfilled') {
+            const sortedData = Object.entries(languageData.value)
+                .sort(([, a], [, b]) => b - a);
+            const topLanguages = Object.fromEntries(sortedData);
+            utils.storage.set('topLanguages', topLanguages);
+            renderLanguageDistribution(topLanguages, 'language-distribution');
+        }
+
+        // Process daily events
+        if (dailyData.status === 'fulfilled' && Array.isArray(dailyData.value) && dailyData.value.length > 0) {
+            const data = dailyData.value.sort((a, b) => new Date(a.date) - new Date(b.date));
+            processDailyEvents(data);
+            renderDailyEvents(data, 'daily-events');
+        }
+
+        // Process hourly visits
+        if (hourlyData.status === 'fulfilled' && hourlyData.value.success) {
+            renderHourlyEvents(hourlyData.value.hourlyVisits, 'hourly-events');
+            analyzeHourlyVisits(hourlyData.value.hourlyVisits);
+        }
+
+        // Process campaigns (kiosks)
+        if (campaignData.status === 'fulfilled') {
+            processKioskData(campaignData.value);
+        }
+
+        // Fetch additional data
+        await Promise.allSettled([
+            fetchCombinedUnitData(params),
+            fetchFloorData(params),
+            fetchDailyCategories(params)
+        ]);
+
+        utils.showToast('Veriler başarıyla yüklendi', 'success', 'Başarılı');
+
+    } catch (error) {
+        console.error('Data fetch error:', error);
+        utils.showToast('Veriler yüklenirken bir hata oluştu', 'error', 'Hata');
+    } finally {
+        utils.setLoading(false);
+    }
+}
+
+// Process category data from searched events
+async function processCategoryData(searchedData, params) {
+    try {
+        const titles = searchedData
+            .filter(item => item.label.includes('->'))
+            .map(item => item.label.split('->')[1].trim());
+
+        const jsonPath = `./assets/${state.globalSiteId}.json`;
+        const categoryData = await categorizeTitlesWithJson(titles, jsonPath);
+
+        if (categoryData.length > 0) {
+            // Find most used category
+            const maxCategory = categoryData.reduce((max, cat) => 
+                cat.nb_events > max.nb_events ? cat : max
+            , { nb_events: 0 });
+            
+            if (maxCategory.label) {
+                utils.storage.set('mostUsedCategory', maxCategory.label);
+            }
+
+            renderStoreCategoriesDonutChart(categoryData, 'donut-container');
+        }
+    } catch (error) {
+        console.error('Category processing error:', error);
+    }
+}
+
+// Fetch combined unit data (searched + touched + initialized)
+async function fetchCombinedUnitData(params) {
+    try {
+        const [searchedData, touchedData, initializedData] = await Promise.all([
+            api.getSearchedEvents(params),
+            api.getTouchedEvents(params),
+            api.getInitializedEvents(params)
+        ]);
+
+        const mergedMap = {};
+        
+        // Process searched data
+        searchedData.forEach(item => {
+            const parts = item.label.split('->');
+            if (parts.length > 1) {
+                const name = parts[1].trim();
+                mergedMap[name] = (mergedMap[name] || 0) + (item.nb_events || 0);
+            }
+        });
+
+        // Add touched data
+        for (const [title, count] of Object.entries(touchedData)) {
+            mergedMap[title] = (mergedMap[title] || 0) + count;
+        }
+
+        // Add initialized data
+        for (const [title, count] of Object.entries(initializedData)) {
+            mergedMap[title] = (mergedMap[title] || 0) + count;
+        }
+
+        const totalEvents = Object.values(mergedMap).reduce((sum, count) => sum + count, 0);
+        const jsonPath = `./assets/${state.globalSiteId}.json`;
+
+        // Top units table
+        const categoryData = await summarizeTitlesWithDetails(mergedMap, jsonPath, totalEvents);
+        renderTopUnitsTable(categoryData, 'top-units-table-container', totalEvents);
+
+        // Services table
+        const titlesWithCounts = Object.entries(mergedMap).map(([eventName, nbEvents]) => 
+            ({ eventName, nbEvents })
+        );
+        const servicesData = await summarizeTopServicesByCategory(titlesWithCounts, jsonPath, totalEvents);
+        renderServicesTable(servicesData, 'services-container', totalEvents);
+
+        // Store top processed units
+        const sortedUnits = Object.entries(mergedMap)
+            .map(([unit, count]) => ({ unit, count }))
+            .filter(item => !item.unit.includes("Direct?"))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+        
+        utils.storage.set('topProcessedUnits', sortedUnits);
+
+    } catch (error) {
+        console.error('Combined unit data error:', error);
+    }
+}
+
+// Fetch floor data
+async function fetchFloorData(params) {
+    try {
+        const [campaignData, searchedData] = await Promise.all([
+            api.getCampaigns(params),
+            api.getSearchedEvents(params)
+        ]);
+
+        const ccpoResult = getTotalActionsByFloor(campaignData);
+        
+        const titlesWithCounts = searchedData
+            .filter(item => item.label.includes('->'))
+            .map(item => ({
+                eventName: item.label.split('->')[1].trim(),
+                nbEvents: item.nb_events
+            }));
+
+        const jsonPath = `./assets/${state.globalSiteId}.json`;
+        const eventResult = await findEventFloor(titlesWithCounts, jsonPath);
+
+        // Check if we have valid floor data
+        const allCcpoZeros = Object.values(ccpoResult).every(v => v === 0);
+        const floorCount = Object.keys(eventResult).length;
+
+        if (!allCcpoZeros && floorCount > 1) {
+            const allFloors = [-3, -2, -1, 0, 1, 2, 3];
+            const totalCCPO = Object.values(ccpoResult).reduce((sum, val) => sum + val, 0);
+            const totalEvents = Object.values(eventResult).reduce((sum, val) => sum + val, 0);
+
+            const mergedResults = allFloors.map(floor => ({
+                floor,
+                kioskUsagePercent: totalCCPO > 0 ? ((ccpoResult[floor] || 0) / totalCCPO * 100).toFixed(2) : '0.00',
+                unitSearchPercent: totalEvents > 0 ? ((eventResult[floor] || 0) / totalEvents * 100).toFixed(2) : '0.00'
+            }));
+
+            renderFloorsTable(mergedResults, 'floors-container');
+
+            // Store max event floor
+            const maxEventFloor = Object.entries(eventResult).reduce((max, [floor, nbEvents]) => 
+                nbEvents > max.nbEvents ? { floor, nbEvents } : max
+            , { floor: null, nbEvents: 0 });
+
+            if (maxEventFloor.floor !== null) {
+                utils.storage.set('maxEventFloor', maxEventFloor.floor);
+                utils.storage.set('maxEventNbEvents', maxEventFloor.nbEvents);
+            }
+        } else {
+            const container = document.getElementById('floors-container');
+            if (container) container.innerHTML = '';
+        }
+
+    } catch (error) {
+        console.error('Floor data error:', error);
+    }
+}
+
+// Fetch daily categories for area chart
+async function fetchDailyCategories(params) {
+    try {
+        const dailyData = await api.getSearchedDaily(params);
+        const jsonPath = `./assets/${state.globalSiteId}.json`;
+        const categorizedData = await categorizeEventsByDayAndCategory(dailyData, jsonPath);
+        renderStoreCategoriesAreaChart(categorizedData, 'area-chart-container');
+    } catch (error) {
+        console.error('Daily categories error:', error);
+    }
+}
+
+// Process kiosk data
+function processKioskData(data) {
+    const cleanedData = cleanCampaignData(data);
+    
+    if (!cleanedData || cleanedData.length === 0) {
+        utils.storage.remove('mostUsedKioskId');
+        utils.storage.remove('usagePercentage');
+        const container = document.getElementById('kiosks-container');
+        if (container) container.innerHTML = '';
+        return;
+    }
+
+    // Skip if web or mobile-android
+    const isExcluded = cleanedData.some(k => k.kiosk === 'web' || k.kiosk === 'mobile-android');
+    if (isExcluded) return;
+
+    const totalActions = cleanedData.reduce((total, k) => total + k.actions, 0);
+    const mostUsed = cleanedData.reduce((max, k) => k.actions > max.actions ? k : max, cleanedData[0]);
+
+    utils.storage.set('mostUsedKioskId', mostUsed.kiosk);
+    utils.storage.set('usagePercentage', ((mostUsed.actions / totalActions) * 100).toFixed(2));
+
+    renderKiosksTable(cleanedData, 'kiosks-container');
+}
+
+// Process daily events for analytics
+function processDailyEvents(data) {
+    const totalEvents = data.reduce((sum, day) => sum + day.totalEvents, 0);
+    const average = totalEvents / data.length;
+    const minIncrease = 20;
+
+    const significantDates = data
+        .filter(day => {
+            const increase = ((day.totalEvents - average) / average) * 100;
+            return increase >= minIncrease;
+        })
+        .map(day => ({
+            date: day.date,
+            currentCount: day.totalEvents,
+            averageEventCount: average,
+            increasePercentage: (((day.totalEvents - average) / average) * 100).toFixed(2)
+        }));
+
+    if (significantDates.length > 0) {
+        utils.storage.set('significantIncreaseDates', significantDates);
+    } else {
+        utils.storage.remove('significantIncreaseDates');
+    }
+
+    // Most events day
+    const mostEvents = data.reduce((max, day) => 
+        day.totalEvents > max.totalEvents ? day : max
+    , { totalEvents: 0 });
+
+    utils.storage.set('mostEventsData', {
+        date: mostEvents.date,
+        totalEvents: mostEvents.totalEvents
     });
-});
+}
 
+// Analyze hourly visits
+function analyzeHourlyVisits(hourlyVisits) {
+    const total = hourlyVisits.reduce((sum, val) => sum + val, 0);
+    const average = total / hourlyVisits.length;
 
+    const aboveAverage = hourlyVisits
+        .map((value, hour) => ({ hour, value }))
+        .filter(item => item.value > average)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 3)
+        .map(({ hour, value }) => ({ hour, visits: Math.ceil(value) }));
 
+    const maxValue = Math.max(...hourlyVisits);
+    const peakHour = hourlyVisits.indexOf(maxValue);
+
+    utils.storage.set('hourlyVisitAnalysis', {
+        totalVisits: Math.ceil(total),
+        roundedAverage: Math.ceil(average),
+        top3AboveAverage: aboveAverage,
+        peakHour,
+        peakValue: Math.ceil(maxValue)
+    });
+}
+
+// =====================================================
+// Date Range Handling
+// =====================================================
 
 function handleQuickRange(days) {
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
-
+    const today = new Date();
     let startDate, endDate;
 
-    const today = new Date();
-
     if (days === 30) {
-        // Bugünün bulunduğu ayın ilk günü
         startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        // Ayın son günü: bir sonraki ayın 0. günü (yani bir önceki ayın son günü)
         endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     } else if (days === 365) {
-        // Yılın ilk ve son günü
         startDate = new Date(today.getFullYear(), 0, 1);
         endDate = new Date(today.getFullYear(), 11, 31);
     } else if (days) {
-        // Günlük/haftalık gibi normal aralıklar
         endDate = new Date();
         startDate = new Date();
         startDate.setDate(endDate.getDate() - days + 1);
     } else {
-        // days undefined veya 0 ise inputları temizle
         startDateInput.value = '';
         endDateInput.value = '';
         fetchAllData();
@@ -198,1307 +717,656 @@ function handleQuickRange(days) {
     startDateInput.value = startStr;
     endDateInput.value = endStr;
 
+    ui.setActiveQuickRange(days);
+    utils.storage.set('selectedRange', days);
+    utils.storage.remove('startDate');
+    utils.storage.remove('endDate');
+
     fetchAllData(startStr, endStr);
 }
 
-function fetchAllData(startDate, endDate, siteId = globalSiteId) {
-    const params = startDate && endDate
-        ? `?startDate=${startDate}&endDate=${endDate}&siteId=${siteId}`
-        : `?siteId=${siteId}`;
+// =====================================================
+// Site Management
+// =====================================================
 
-    fetch(`http://localhost:3001/api/user-statistics${params}`)
-        .then(res => res.json())
-        .then(data => {
+async function loadSites() {
+    try {
+        const response = await api.getSites();
+        // Handle both old format (array) and new format (object with sites property)
+        const sites = Array.isArray(response) ? response : (response.sites || []);
+        const grouped = response.grouped || null;
+        
+        state.sites = sites;
+        renderSiteDropdown(sites, grouped);
+        
+        // Check for stored site - convert both to string for comparison
+        const storedSiteId = localStorage.getItem('selectedSiteId');
+        const storedSiteName = localStorage.getItem('selectedSiteName');
+        if (storedSiteId) {
+            const site = sites.find(s => String(s.id) === String(storedSiteId));
+            if (site) {
+                selectSite(site);
+            } else if (storedSiteName) {
+                // Site not found in list but we have stored name - use it anyway
+                selectSite({ id: storedSiteId, name: storedSiteName });
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load sites:', error);
+        utils.showToast('Siteler yüklenemedi', 'error', 'Hata');
+    }
+}
 
-            localStorage.setItem("totalVisits", data.totalVisits);
-            localStorage.setItem("bounceRate", data.bounceRate);
-            localStorage.setItem("mostVisitedDeviceType", data.mostVisitedDeviceType);
-            localStorage.setItem("avgTimeOnPage", data.avgTimeOnPage);
+function renderSiteDropdown(sites, grouped = null) {
+    const container = document.getElementById('siteDropdownList');
+    if (!container) return;
 
-            renderStatistics(data);
-        })
-        .catch(() => {
-            document.getElementById('user-statistics').innerText = 'Veri alınamadı';
+    // If we have grouped data, render with categories
+    if (grouped) {
+        let html = '';
+        Object.entries(grouped).forEach(([key, category]) => {
+            if (category.sites && category.sites.length > 0) {
+                html += `<div class="site-category-header">${category.icon} ${category.name}</div>`;
+                html += category.sites.map(site => `
+                    <div class="site-dropdown-item" data-id="${site.id}" data-name="${site.name}">
+                        ${site.name}
+                    </div>
+                `).join('');
+            }
         });
+        container.innerHTML = html;
+    } else {
+        // Fallback to simple list
+        container.innerHTML = sites.map(site => `
+            <div class="site-dropdown-item" data-id="${site.id}" data-name="${site.name}">
+                ${site.name}
+            </div>
+        `).join('');
+    }
 
-    fetch(`http://localhost:3001/api/events/from-to-names${params}`)
-        .then(res => res.json())
-        .then(data => renderFromToEvents(data, 'from-to-events'));
-
-    fetch(`http://localhost:3001/api/events/from-to-names${params}`)
-        .then(res => res.json())
-        .then(data => renderFromToEventsByStart(data, 'start-to-end-events'));
-
-    fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(res => res.json())
-        .then(data => renderSearchedEvents(data, 'searched-events'));
-
-    fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(res => res.json())
-        .then(data => renderTop5SearchedTerms(data, 'top-searchs'));
-
-    fetch(`http://localhost:3001/api/os-distribution${params}`)
-        .then(async res => {
-            const text = await res.text();
-            console.log("Gelen response (ham hali):", text);
-
-            try {
-                const data = JSON.parse(text);
-                renderOperatingSystemDistribution(data, 'operating-systems');
-                renderOperatingSystemDistribution(data, 'pdf-operating-systems');
-            } catch (err) {
-                console.error("JSON parse hatası:", err);
-            }
-        })
-        .catch(err => {
-            console.error("Fetch hatası:", err);
-        });
-    fetch(`http://localhost:3001/api/events/summary-counts${params}`)
-        .then(res => res.json())
-        .then(data => {
-            // Gelen veriyi localStorage'a her birini ayrı kaydediyoruz
-            localStorage.setItem('fromTo', data.fromTo);
-            localStorage.setItem('searched', data.searched);
-            localStorage.setItem('touched', data.touched);
-            localStorage.setItem('initialized', data.initialized);
-            localStorage.setItem('total', data.total);
-
-            // Veriyi render et
-            renderEventSummary(data);
-        })
-        .catch(err => {
-            console.error('Etkinlik verisi alınırken hata oluştu:', err);
-            document.getElementById('event-summary').innerText = 'Veri alınamadı';
-        });
-
-    fetch(`http://localhost:3001/api/user-language-distribution${params}`)
-        .then(async res => {
-            const text = await res.text();
-            console.log("Gelen response (ham hali):", text);
-
-            try {
-                const data = JSON.parse(text);
-
-                // Sort the data by value in descending order
-                const sortedData = Object.entries(data)
-                    .sort(([, a], [, b]) => b - a)  // Sorting by value (descending)
-
-
-                // Create an object with the top 5 data, including language counts
-                const topLanguages = Object.fromEntries(sortedData);
-
-                // Store it in localStorage with both the language and count
-                localStorage.setItem('topLanguages', JSON.stringify(topLanguages));
-
-                renderLanguageDistribution(topLanguages, 'language-distribution');
-            } catch (err) {
-                console.error("JSON parse hatası:", err);
-            }
-        })
-        .catch(err => {
-            console.error("Fetch hatası:", err);
-        });
-
-    // API endpoint'i ve parametreleriniz
-    const apiEndpoint = `http://localhost:3001/api/events/daily-count${params}`;
-
-    fetch(apiEndpoint)
-        .then(res => {
-            // Yanıtın başarılı olup olmadığını kontrol edin
-            if (!res.ok) {
-                throw new Error(`API isteği başarısız oldu, durum: ${res.status}`);
-            }
-            return res.json();
-        })
-        .then(data => {
-            // Gelen verinin formatını kontrol edin (örneğin, boş dizi olup olmadığını)
-            if (!Array.isArray(data) || data.length === 0) {
-                console.warn('API\'den boş veya geçersiz veri döndü.');
-                const dailyEventsElement = document.getElementById('daily-events');
-                if (dailyEventsElement) {
-                    dailyEventsElement.innerText = 'Veri bulunamadı veya geçersiz format.';
-                } else {
-                    console.error('Hata veya veri bulunamadı mesajını gösterecek HTML elementi (id="daily-events") bulunamadı.');
-                }
-                return; // İşlemi durdur
-            }
-
-            // Veriyi tarihe göre artan sırada sırala (en eskiden en yeniye)
-            data.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-            // renderDailyEvents fonksiyonunu çağırarak veriyi render et (isteğe bağlı)
-            // renderDailyEvents(data, 'daily-events');
-
-            const significantIncreaseDates = []; // Önemli artış gösteren tarihleri saklayacak dizi
-
-            // Yapılandırılabilir eşikler (thresholds)
-            const minEventDifference = 500; // Önceki güne göre minimum mutlak artış sayısı
-            const minPreviousCount = 100; // Artışın dikkate alınması için önceki gün minimum etkinlik sayısı
-            const minPercentageIncrease = 20; // Minimum yüzde artış oranı (% olarak)
-
-            // Veri üzerinde döngü yap, ilk elemanı atla (önceki gün yok)
-            for (let i = 1; i < data.length; i++) {
-                const previousDayData = data[i - 1]; // Önceki günün verisi
-                const currentDayData = data[i];     // İçinde bulunulan günün verisi
-
-                const previousCount = previousDayData.totalEvents;
-                const currentCount = currentDayData.totalEvents;
-
-                // Olası artış miktarını hesapla
-                const increaseAmount = currentCount - previousCount;
-
-                // Yüzde artışı hesapla (karşılaştırma için ondalıklı değer)
-                // previousCount 0 ise yüzde hesaplanamaz, bu durumu 0 olarak ele alalım
-                const rawPercentageIncrease = (previousCount > 0) ? (increaseAmount / previousCount) * 100 : 0;
-
-
-                if (currentCount > previousCount &&
-                    increaseAmount >= minEventDifference &&
-                    previousCount >= minPreviousCount &&
-                    rawPercentageIncrease >= minPercentageIncrease) // <-- Yeni Koşul Eklendi
-                {
-                    // Eğer tüm koşullar sağlanırsa, yüzdeyi iki ondalık basamağa yuvarla
-                    const percentageIncreaseFormatted = rawPercentageIncrease.toFixed(2);
-
-                    significantIncreaseDates.push({
-                        date: currentDayData.date, // Artışın yaşandığı gün (güncel tarih)
-                        previousDate: previousDayData.date, // Karşılaştırılan önceki gün
-                        previousCount: previousCount,
-                        currentCount: currentCount,
-                        increaseAmount: increaseAmount, // Mutlak artış miktarı (sayı olarak)
-                        increasePercentage: percentageIncreaseFormatted // Yüzde artış oranı (% olarak, formatlı)
-                    });
-                }
-            }
-
-            // En çok etkinlik olan günü de bulma (isteğe bağlı, ayrı bir işlem)
-            let mostEventsDate = '';
-            let mostEventsCount = 0;
-            // Sıralanmış veri üzerinde bulabiliriz, son tarihler dizinin sonundadır
-            data.forEach(item => {
-                if (item.totalEvents > mostEventsCount) {
-                    mostEventsCount = item.totalEvents;
-                    mostEventsDate = item.date;
-                }
-            });
-
-
-            // Sonuçları konsola yazdır ve localStorage'a kaydet
-
-            // En çok etkinlik olan günü ve sayısını localStorage'a kaydet
-            const mostEventsData = {
-                date: mostEventsDate,
-                totalEvents: mostEventsCount
+    // Add click handlers
+    container.querySelectorAll('.site-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const site = {
+                id: item.dataset.id,
+                name: item.dataset.name
             };
-            localStorage.setItem('mostEventsData', JSON.stringify(mostEventsData));
-            console.log('En çok etkinlik olan gün:', mostEventsData);
-
-
-            // Aşırı yükselme gösteren tarihler varsa, bunları loglayalım ve kaydedelim
-            if (significantIncreaseDates.length > 0) {
-                console.log('Günlük etkinlik sayısında önceki güne göre aşırı YÜKSELME olan tarihler (Min %' + minPercentageIncrease + ' Artış):', significantIncreaseDates);
-                localStorage.setItem('significantIncreaseDates', JSON.stringify(significantIncreaseDates));
-            } else {
-                console.log('Belirtilen koşullara uygun (Min %' + minPercentageIncrease + ' Artış) aşırı etkinlik yükselmesi olan tarih bulunamadı.');
-                // Eğer daha önce kaydedilmiş veri varsa temizle
-                localStorage.removeItem('significantIncreaseDates');
-            }
-            renderDailyEvents(data, 'daily-events');
-
-        })
-        .catch(err => {
-            console.error('Günlük etkinlik verisi alınırken hata oluştu:', err);
-            // Hata durumunda kullanıcıya bilgi verin
-            const dailyEventsElement = document.getElementById('daily-events');
-            if (dailyEventsElement) {
-                dailyEventsElement.innerText = 'Veri alınamadı.';
-            } else {
-                console.error('Hata mesajını gösterecek HTML elementi (id="daily-events") bulunamadı.');
-            }
+            selectSite(site);
+            document.getElementById('siteDropdown').classList.remove('open');
         });
+    });
+}
 
+function selectSite(site) {
+    state.globalSiteId = site.id;
+    localStorage.setItem('selectedSiteId', site.id);
+    localStorage.setItem('selectedSiteName', site.name);
+    
+    ui.updateSelectedSiteName(site.name);
+    
+    // Update selected state in dropdown - convert both to string for comparison
+    document.querySelectorAll('.site-dropdown-item').forEach(item => {
+        item.classList.toggle('selected', String(item.dataset.id) === String(site.id));
+    });
 
-    function analyzeHourlyVisits(hourlyVisits) {
-        // Toplam ve ortalama hesapla
-        const totalVisits = hourlyVisits.reduce((sum, val) => sum + val, 0);
-        const average = totalVisits / hourlyVisits.length;
-        const roundedAverage = Math.ceil(average);
+    // Enable form elements
+    document.querySelectorAll('#startDate, #endDate, .quick-range-btn, #fetchDataBtn').forEach(el => {
+        el.disabled = false;
+    });
 
-        // Ortalamanın üzerindekileri filtrele
-        const aboveAverage = hourlyVisits
-            .map((value, hour) => ({ hour, value }))
-            .filter(item => item.value > average);
+    // Load data
+    const storedRange = utils.storage.get('selectedRange');
+    const storedStart = localStorage.getItem('startDate');
+    const storedEnd = localStorage.getItem('endDate');
 
-        // En yüksek 3 saat
-        const top3AboveAverage = [...aboveAverage]
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 3)
-            .map(({ hour, value }) => ({
-                hour,
-                visits: Math.ceil(value)
-            }));
+    if (storedStart && storedEnd) {
+        document.getElementById('startDate').value = storedStart;
+        document.getElementById('endDate').value = storedEnd;
+        fetchAllData(storedStart, storedEnd);
+    } else if (storedRange) {
+        handleQuickRange(storedRange);
+    } else {
+        // Default to last 7 days
+        handleQuickRange(7);
+    }
+}
 
-        // En yüksek saat
-        const maxValue = Math.max(...hourlyVisits);
-        const peakHour = hourlyVisits.indexOf(maxValue);
-        const roundedMax = Math.ceil(maxValue);
+// Site search filter
+function setupSiteSearch() {
+    const searchInput = document.getElementById('siteSearch');
+    if (!searchInput) return;
 
-        // Kaydedilecek veri
-        const result = {
-            totalVisits: Math.ceil(totalVisits),
-            roundedAverage,
-            top3AboveAverage,
-            peakHour,
-            peakValue: roundedMax
-        };
-
-        // localStorage'a kaydet
-        localStorage.setItem('hourlyVisitAnalysis', JSON.stringify(result));
-
-        // Konsola yaz
-        console.log(`📈 Total Visits: ${Math.ceil(totalVisits)}`);
-        console.log(`📊 Average visits/hour (rounded): ${roundedAverage}`);
-        console.log("🔥 Top 3 hours above average:");
-        top3AboveAverage.forEach(({ hour, visits }) => {
-            console.log(`  - ${hour}:00 → ${visits} visits`);
+    searchInput.addEventListener('input', utils.debounce((e) => {
+        const query = e.target.value.toLowerCase();
+        
+        // Filter items
+        document.querySelectorAll('.site-dropdown-item').forEach(item => {
+            const name = item.dataset.name.toLowerCase();
+            item.style.display = name.includes(query) ? 'block' : 'none';
         });
-        console.log(`🚀 Peak Hour: ${peakHour}:00 with ${roundedMax} visits`);
+        
+        // Hide category headers with no visible items
+        document.querySelectorAll('.site-category-header').forEach(header => {
+            let nextEl = header.nextElementSibling;
+            let hasVisibleItem = false;
+            
+            while (nextEl && !nextEl.classList.contains('site-category-header')) {
+                if (nextEl.classList.contains('site-dropdown-item') && nextEl.style.display !== 'none') {
+                    hasVisibleItem = true;
+                    break;
+                }
+                nextEl = nextEl.nextElementSibling;
+            }
+            
+            header.style.display = hasVisibleItem ? 'block' : 'none';
+        });
+    }, CONFIG.DEBOUNCE_DELAY));
+}
 
-        return result;
+// =====================================================
+// Event Listeners
+// =====================================================
+
+function setupEventListeners() {
+    // Fetch data button
+    const fetchBtn = document.getElementById('fetchDataBtn');
+    if (fetchBtn) {
+        fetchBtn.addEventListener('click', () => {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (startDate && endDate) {
+                localStorage.setItem('startDate', startDate);
+                localStorage.setItem('endDate', endDate);
+                utils.storage.remove('selectedRange');
+                ui.setActiveQuickRange(null);
+            }
+            
+            fetchAllData(startDate, endDate);
+        });
     }
 
-    // Örnek kullanım
-    fetch(`http://localhost:3001/api/hourly-visits${params}`)
-        .then(res => res.json())
-        .then(data => {
-            console.log('saatlik Yanıtı:', data);
-            if (data.success) {
-                renderHourlyEvents(data.hourlyVisits, 'hourly-events');
+    // Quick range buttons
+    document.getElementById('btn-1g')?.addEventListener('click', () => handleQuickRange(1));
+    document.getElementById('btn-1h')?.addEventListener('click', () => handleQuickRange(7));
+    document.getElementById('btn-1a')?.addEventListener('click', () => handleQuickRange(30));
+    document.getElementById('btn-1y')?.addEventListener('click', () => handleQuickRange(365));
 
-                // 📈 Analiz işlemi burada
-                analyzeHourlyVisits(data.hourlyVisits);
-            } else {
-                console.error('API başarısız:', data.message);
-            }
-        })
-        .catch(err => {
-            console.error('API isteği sırasında bir hata oluştu:', err);
+    // Date inputs change
+    ['startDate', 'endDate'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', () => {
+            ui.setActiveQuickRange(null);
         });
+    });
 
+    // Site search
+    setupSiteSearch();
+}
 
-    console.log("🔍 Fetch başlatılıyor: ", `http://localhost:3001/api/events/searched${params}`);
+// =====================================================
+// Language Flag Helper
+// =====================================================
 
-    fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(response => response.json())
-        .then(async data => {
-            const titles = [];
+function normalizeLanguage(langString) {
+    const lower = langString.toLowerCase();
+    
+    // English variants - combine all
+    if (lower.includes('english') || lower === 'en' || lower.startsWith('en-')) {
+        return { name: 'İngilizce', flag: '🇬🇧' };
+    }
+    // Turkish
+    if (lower.includes('turkish') || lower === 'tr') {
+        return { name: 'Türkçe', flag: '🇹🇷' };
+    }
+    // German
+    if (lower.includes('german') || lower === 'de' || lower.startsWith('de-')) {
+        return { name: 'Almanca', flag: '🇩🇪' };
+    }
+    // French
+    if (lower.includes('french') || lower === 'fr' || lower.startsWith('fr-')) {
+        return { name: 'Fransızca', flag: '🇫🇷' };
+    }
+    // Spanish
+    if (lower.includes('spanish') || lower === 'es' || lower.startsWith('es-')) {
+        return { name: 'İspanyolca', flag: '🇪🇸' };
+    }
+    // Italian
+    if (lower.includes('italian') || lower === 'it' || lower.startsWith('it-')) {
+        return { name: 'İtalyanca', flag: '🇮🇹' };
+    }
+    // Russian
+    if (lower.includes('russian') || lower === 'ru') {
+        return { name: 'Rusça', flag: '🇷🇺' };
+    }
+    // Arabic
+    if (lower.includes('arabic') || lower === 'ar' || lower.startsWith('ar-')) {
+        return { name: 'Arapça', flag: '🇸🇦' };
+    }
+    // Chinese
+    if (lower.includes('chinese') || lower === 'zh' || lower.startsWith('zh-')) {
+        return { name: 'Çince', flag: '🇨🇳' };
+    }
+    // Japanese
+    if (lower.includes('japanese') || lower === 'ja') {
+        return { name: 'Japonca', flag: '🇯🇵' };
+    }
+    // Korean
+    if (lower.includes('korean') || lower === 'ko') {
+        return { name: 'Korece', flag: '🇰🇷' };
+    }
+    // Portuguese
+    if (lower.includes('portuguese') || lower === 'pt' || lower.startsWith('pt-')) {
+        return { name: 'Portekizce', flag: '🇵🇹' };
+    }
+    // Dutch
+    if (lower.includes('dutch') || lower === 'nl') {
+        return { name: 'Felemenkçe', flag: '🇳🇱' };
+    }
+    // Polish
+    if (lower.includes('polish') || lower === 'pl') {
+        return { name: 'Lehçe', flag: '🇵🇱' };
+    }
+    // Swedish
+    if (lower.includes('swedish') || lower === 'sv') {
+        return { name: 'İsveççe', flag: '🇸🇪' };
+    }
+    // Greek
+    if (lower.includes('greek') || lower === 'el') {
+        return { name: 'Yunanca', flag: '🇬🇷' };
+    }
+    // Croatian
+    if (lower.includes('croatian') || lower === 'hr') {
+        return { name: 'Hırvatça', flag: '🇭🇷' };
+    }
+    // Czech
+    if (lower.includes('czech') || lower === 'cs') {
+        return { name: 'Çekçe', flag: '🇨🇿' };
+    }
+    // Romanian
+    if (lower.includes('romanian') || lower === 'ro') {
+        return { name: 'Romence', flag: '🇷🇴' };
+    }
+    // Hungarian
+    if (lower.includes('hungarian') || lower === 'hu') {
+        return { name: 'Macarca', flag: '🇭🇺' };
+    }
+    // Ukrainian
+    if (lower.includes('ukrainian') || lower === 'uk') {
+        return { name: 'Ukraynaca', flag: '🇺🇦' };
+    }
+    // Hebrew
+    if (lower.includes('hebrew') || lower === 'he') {
+        return { name: 'İbranice', flag: '🇮🇱' };
+    }
+    // Persian
+    if (lower.includes('persian') || lower.includes('farsi') || lower === 'fa') {
+        return { name: 'Farsça', flag: '🇮🇷' };
+    }
+    // Hindi
+    if (lower.includes('hindi') || lower === 'hi') {
+        return { name: 'Hintçe', flag: '🇮🇳' };
+    }
+    // Thai
+    if (lower.includes('thai') || lower === 'th') {
+        return { name: 'Tayca', flag: '🇹🇭' };
+    }
+    // Vietnamese
+    if (lower.includes('vietnamese') || lower === 'vi') {
+        return { name: 'Vietnamca', flag: '🇻🇳' };
+    }
+    // Indonesian
+    if (lower.includes('indonesian') || lower === 'id') {
+        return { name: 'Endonezce', flag: '🇮🇩' };
+    }
+    // Norwegian
+    if (lower.includes('norwegian') || lower === 'no' || lower === 'nb') {
+        return { name: 'Norveççe', flag: '🇳🇴' };
+    }
+    // Danish
+    if (lower.includes('danish') || lower === 'da') {
+        return { name: 'Danca', flag: '🇩🇰' };
+    }
+    // Finnish
+    if (lower.includes('finnish') || lower === 'fi') {
+        return { name: 'Fince', flag: '🇫🇮' };
+    }
+    
+    // Default - return original with globe emoji
+    return { name: langString, flag: '🌐' };
+}
 
-            data.forEach(item => {
-                const labelParts = item.label.split('->');
-                if (labelParts.length > 1) {
-                    const eventName = labelParts[1].trim();
-                    titles.push(eventName);
-                }
-            });
+function getLanguageFlag(langString) {
+    // Map language strings to emoji flags
+    const flagMap = {
+        'turkish': '🇹🇷',
+        'tr': '🇹🇷',
+        'turkish (tr)': '🇹🇷',
+        'english': '🇬🇧',
+        'en': '🇬🇧',
+        'english - united states': '🇺🇸',
+        'english - united states (en-us)': '🇺🇸',
+        'en-us': '🇺🇸',
+        'english - united kingdom': '🇬🇧',
+        'english - united kingdom (en-gb)': '🇬🇧',
+        'en-gb': '🇬🇧',
+        'english - canada': '🇨🇦',
+        'en-ca': '🇨🇦',
+        'english - australia': '🇦🇺',
+        'en-au': '🇦🇺',
+        'german': '🇩🇪',
+        'de': '🇩🇪',
+        'german - germany': '🇩🇪',
+        'de-de': '🇩🇪',
+        'french': '🇫🇷',
+        'fr': '🇫🇷',
+        'french - france': '🇫🇷',
+        'fr-fr': '🇫🇷',
+        'spanish': '🇪🇸',
+        'es': '🇪🇸',
+        'spanish - spain': '🇪🇸',
+        'es-es': '🇪🇸',
+        'italian': '🇮🇹',
+        'it': '🇮🇹',
+        'russian': '🇷🇺',
+        'ru': '🇷🇺',
+        'arabic': '🇸🇦',
+        'ar': '🇸🇦',
+        'chinese': '🇨🇳',
+        'zh': '🇨🇳',
+        'japanese': '🇯🇵',
+        'ja': '🇯🇵',
+        'korean': '🇰🇷',
+        'ko': '🇰🇷',
+        'portuguese': '🇵🇹',
+        'pt': '🇵🇹',
+        'dutch': '🇳🇱',
+        'nl': '🇳🇱',
+        'dutch - netherlands': '🇳🇱',
+        'polish': '🇵🇱',
+        'pl': '🇵🇱',
+        'swedish': '🇸🇪',
+        'sv': '🇸🇪',
+        'norwegian': '🇳🇴',
+        'no': '🇳🇴',
+        'danish': '🇩🇰',
+        'da': '🇩🇰',
+        'finnish': '🇫🇮',
+        'fi': '🇫🇮',
+        'greek': '🇬🇷',
+        'el': '🇬🇷',
+        'czech': '🇨🇿',
+        'cs': '🇨🇿',
+        'hungarian': '🇭🇺',
+        'hu': '🇭🇺',
+        'romanian': '🇷🇴',
+        'ro': '🇷🇴',
+        'ukrainian': '🇺🇦',
+        'uk': '🇺🇦',
+        'hebrew': '🇮🇱',
+        'he': '🇮🇱',
+        'persian': '🇮🇷',
+        'fa': '🇮🇷',
+        'hindi': '🇮🇳',
+        'hi': '🇮🇳',
+        'thai': '🇹🇭',
+        'th': '🇹🇭',
+        'vietnamese': '🇻🇳',
+        'vi': '🇻🇳',
+        'indonesian': '🇮🇩',
+        'id': '🇮🇩',
+        'malay': '🇲🇾',
+        'ms': '🇲🇾'
+    };
+    
+    const normalizedLang = langString.toLowerCase().trim();
+    return flagMap[normalizedLang] || '🌐';
+}
 
-            // Kategorize etme işlemi
-            const categoryData = await categorizeTitlesWithJson(titles, `./assets/${globalSiteId}.json`);
+// =====================================================
+// PDF Page Data Loading
+// =====================================================
 
-            console.log("Kategoriler ve Etkinlik Sayıları:", categoryData);
-            // En çok kullanılan kategoriyi bul
-            let maxCategory = null;
-            let maxCount = 0;
+async function loadPdfPageData() {
+    const storedSiteId = localStorage.getItem('selectedSiteId');
+    if (!storedSiteId) {
+        console.warn('No site selected for PDF');
+        return;
+    }
 
-            categoryData.forEach(category => {
-                if (category.nb_events > maxCount) {
-                    maxCount = category.nb_events;
-                    maxCategory = category.label;
-                }
-            });
+    state.globalSiteId = storedSiteId;
 
-            // Sadece kategoriyi localStorage'a kaydet
-            if (maxCategory) {
-                localStorage.setItem('mostUsedCategory', maxCategory);
+    // Get date range from localStorage
+    const storedRange = utils.storage.get('selectedRange');
+    const storedStart = localStorage.getItem('startDate');
+    const storedEnd = localStorage.getItem('endDate');
+
+    let startDate, endDate;
+
+    if (storedStart && storedEnd) {
+        startDate = storedStart;
+        endDate = storedEnd;
+    } else if (storedRange) {
+        const today = new Date();
+        if (storedRange === 30) {
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+        } else if (storedRange === 365) {
+            startDate = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
+            endDate = new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0];
+        } else {
+            endDate = today.toISOString().split('T')[0];
+            const start = new Date();
+            start.setDate(today.getDate() - storedRange + 1);
+            startDate = start.toISOString().split('T')[0];
+        }
+    } else {
+        // Default to last 7 days
+        const today = new Date();
+        endDate = today.toISOString().split('T')[0];
+        const start = new Date();
+        start.setDate(today.getDate() - 6);
+        startDate = start.toISOString().split('T')[0];
+    }
+
+    console.log('📄 PDF Page - Loading data for site:', storedSiteId);
+    await fetchAllData(startDate, endDate);
+    
+    // Wait a bit for localStorage to be populated
+    setTimeout(() => {
+        // Populate summary list
+        populateSummaryList();
+        
+        // Load categorized units if available
+        loadCategorizedUnitsForPdf();
+    }, 500);
+}
+
+async function loadCategorizedUnitsForPdf() {
+    try {
+        const jsonPath = `./assets/${state.globalSiteId}_categorized_units.json`;
+        const response = await fetch(jsonPath);
+        if (response.ok) {
+            const data = await response.json();
+            renderCategorizedUnitsList(data, 'categorized-units-chart');
+        }
+    } catch (error) {
+        console.log('Categorized units not available for this site');
+    }
+}
+
+function populateSummaryList() {
+    // Get date range
+    const startDateStr = localStorage.getItem('startDate');
+    const endDateStr = localStorage.getItem('endDate');
+    let dateRangeText = '';
+    if (startDateStr && endDateStr) {
+        const startDate = new Date(startDateStr).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const endDate = new Date(endDateStr).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        dateRangeText = `(${startDate} - ${endDate})`;
+    }
+
+    const summaryItems = {
+        'summary-main': () => {
+            const totalVisits = utils.storage.get('totalVisits', 0);
+            const total = utils.storage.get('total', 0);
+            if (totalVisits > 0 || total > 0) {
+                return `Seçilen dönemde ${dateRangeText} toplam <strong>${utils.formatNumber(totalVisits)}</strong> ziyaretçi, <strong>${utils.formatNumber(total)}</strong> etkinlik (harita çağırım, rotalama, arama, tıklama) gerçekleştirmiştir.`;
             }
-
-            // Donut chart'ı render etme
-            renderStoreCategoriesDonutChart(categoryData, "donut-container");
-        })
-        .catch(error => {
-            console.error("Hata oluştu:", error);
-        });
-
-    fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            return '';
+        },
+        'summary-events-breakdown': () => {
+            const fromTo = utils.storage.get('fromTo', 0);
+            const searched = utils.storage.get('searched', 0);
+            const touched = utils.storage.get('touched', 0);
+            const initialized = utils.storage.get('initialized', 0);
+            if (fromTo > 0 || searched > 0 || touched > 0) {
+                return `Kullanım sayıları <strong>${utils.formatNumber(fromTo)}</strong> rota çizdirme, <strong>${utils.formatNumber(searched)}</strong> arama, <strong>${utils.formatNumber(touched)}</strong> tıklama ve <strong>${utils.formatNumber(initialized)}</strong> harita çağrım olarak dağılım göstermiştir.`;
             }
-            return response.json();
-        })
-        .then(async searchedData => {
-            const titleEventsMap = {};
-
-            // Searched verisini işle
-            searchedData.forEach(item => {
-                const labelParts = item.label.split('->');
-                if (labelParts.length > 1) {
-                    const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events || 0;
-                    titleEventsMap[eventName] = (titleEventsMap[eventName] || 0) + nbEvents;
-                }
-            });
-
-            console.log("Title Event Map (Searched):", titleEventsMap);
-
-            const entries = Object.entries(titleEventsMap);
+            return '';
+        },
+        'summary-busiest-day': () => {
+            const mostEvents = utils.storage.get('mostEventsData', {});
+            if (mostEvents.date) {
+                const date = new Date(mostEvents.date);
+                const dayName = date.toLocaleDateString('tr-TR', { weekday: 'long' });
+                const dateStr = date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+                return `En çok işlem yapılan gün <strong>${utils.formatNumber(mostEvents.totalEvents)}</strong> kez ile <strong>${dateStr} ${dayName}</strong> günü olmuştur.`;
+            }
+            return '';
+        },
+        'summary-platform': () => {
+            const iosTotal = parseInt(localStorage.getItem('iosTotal')) || 0;
+            const androidTotal = parseInt(localStorage.getItem('androidTotal')) || 0;
+            const webTotal = parseInt(localStorage.getItem('webTotal')) || 0;
+            
+            if (iosTotal > 0 || androidTotal > 0 || webTotal > 0) {
+                const parts = [];
+                if (androidTotal > 0) parts.push(`<strong>Android</strong> üzerinden <strong>${utils.formatNumber(androidTotal)}</strong>`);
+                if (iosTotal > 0) parts.push(`<strong>iOS</strong> üzerinden <strong>${utils.formatNumber(iosTotal)}</strong>`);
+                if (webTotal > 0) parts.push(`<strong>Web</strong> üzerinden <strong>${utils.formatNumber(webTotal)}</strong>`);
+                return `${parts.join(', ')} ziyaret gerçekleşmiştir.`;
+            }
+            return '';
+        },
+        'summary-languages': () => {
+            const topLanguages = utils.storage.get('topLanguages', {});
+            const entries = Object.entries(topLanguages);
             if (entries.length > 0) {
-                const [mostSearchedUnit, maxCount] = entries.reduce((maxEntry, currentEntry) =>
-                    currentEntry[1] > maxEntry[1] ? currentEntry : maxEntry
-                );
-
-                const mostSearchedData = {
-                    unit: mostSearchedUnit,
-                    count: maxCount
-                };
-
-                localStorage.setItem("mostSearchedUnit", JSON.stringify(mostSearchedData));
-                console.log("Most Searched Unit (from searched data):", mostSearchedData);
-            } else {
-                localStorage.removeItem("mostSearchedUnit");
-                console.log("No searched data to determine most searched unit.");
-            }
-
-            // touched verisini al
-            const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
-            if (!touchedResponse.ok) {
-                throw new Error(`HTTP error! status: ${touchedResponse.status}`);
-            }
-            const touchedData = await touchedResponse.json();
-
-            // initialized verisini al
-            const initializedResponse = await fetch(`http://localhost:3001/api/events/initialized${params}`);
-            if (!initializedResponse.ok) {
-                throw new Error(`HTTP error! status: ${initializedResponse.status}`);
-            }
-            const initializedData = await initializedResponse.json();
-
-            // Verileri birleştir
-            const mergedMap = { ...titleEventsMap };
-
-            for (const [title, count] of Object.entries(touchedData)) {
-                mergedMap[title] = (mergedMap[title] || 0) + count;
-            }
-
-            for (const [title, count] of Object.entries(initializedData)) {
-                mergedMap[title] = (mergedMap[title] || 0) + count;
-            }
-
-            console.log("Birleşmiş Veri (Başlık -> Toplam Sayı):", mergedMap);
-
-            const combinedTotalEvents = Object.values(mergedMap).reduce((sum, count) => sum + count, 0);
-            console.log("Birleşmiş Toplam Etkinlik Sayısı (Searched + Touched + Initialized):", combinedTotalEvents);
-
-            const sortedMergedUnits = Object.keys(mergedMap)
-                .map(unit => ({ unit: unit, count: mergedMap[unit] }))
-                .sort((a, b) => b.count - a.count);
-
-            // Kategori verisini hazırla ve tabloyu render et
-            const categoryData = await summarizeTitlesWithDetails(
-                mergedMap,
-                `./assets/${globalSiteId}.json`,
-                combinedTotalEvents
-            );
-
-            renderTopUnitsTable(categoryData, "top-units-table-container", combinedTotalEvents);
-        })
-        .catch(error => {
-            console.error("Hata oluştu:", error);
-            localStorage.removeItem("mostSearchedUnit");
-        });
-
-
-    fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(async searchedData => {
-            const titleEventsMap = {}; // { 'storeName': toplamEventSayısı }
-            let totalEvents = 0;
-
-            // Process searched data
-            searchedData.forEach(item => {
-                const labelParts = item.label.split('->');
-                if (labelParts.length > 1) {
-                    const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events || 0;
-                    titleEventsMap[eventName] = (titleEventsMap[eventName] || 0) + nbEvents;
-                    totalEvents += nbEvents;
-                }
-            });
-
-            // Fetch touched data
-            const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
-            if (!touchedResponse.ok) {
-                throw new Error(`HTTP error! status: ${touchedResponse.status}`);
-            }
-            const touchedData = await touchedResponse.json();
-
-            // Add touched data to titleEventsMap
-            for (const [title, count] of Object.entries(touchedData)) {
-                titleEventsMap[title] = (titleEventsMap[title] || 0) + count;
-                totalEvents += count;
-            }
-
-            // Fetch initialized data
-            const initializedResponse = await fetch(`http://localhost:3001/api/events/initialized${params}`);
-            if (!initializedResponse.ok) {
-                throw new Error(`HTTP error! status: ${initializedResponse.status}`);
-            }
-            const initializedData = await initializedResponse.json();
-
-            // Add initialized data to titleEventsMap
-            for (const [title, count] of Object.entries(initializedData)) {
-                titleEventsMap[title] = (titleEventsMap[title] || 0) + count;
-                totalEvents += count;
-            }
-
-            console.log("Store-Toplam Etkinlik Sayısı (Searched + Touched + Initialized):", totalEvents);
-            console.log("Birleştirilmiş titleEventsMap:", titleEventsMap);
-
-            // Kategorilere göre özetle
-            const categoryData = await summarizeTopStoresByCategory(titleEventsMap, `./assets/${globalSiteId}.json`, totalEvents);
-            console.log("cat-data", categoryData);
-
-            // --- Extracting and saving top 3 units from categoryData ---
-            if (categoryData && Array.isArray(categoryData)) {
-                const top3CombinedUnits = categoryData
-                    .map(item => ({
-                        unit: item.Title || 'Bilinmeyen Birim',
-                        count: item.Count || 0
-                    }))
-                    .sort((a, b) => b.count - a.count)
-                    .slice(0, 3);
-
-                if (top3CombinedUnits.length > 0) {
-                    localStorage.setItem('top3CombinedUnits', JSON.stringify(top3CombinedUnits));
-                    console.log('En çok kullanılan 3 birim (categoryData\'dan) localStoragea kaydedildi:', top3CombinedUnits);
-                } else {
-                    localStorage.removeItem("top3CombinedUnits");
-                    console.warn('Kaydedilecek en çok kullanılan 3 birim (categoryData\'dan) bulunamadı.');
-                }
-            } else {
-                localStorage.removeItem("top3CombinedUnits");
-                console.warn('categoryData boş, tanımsız veya beklenen dizi formatında değil.');
-            }
-            // --- End of extracting and saving top 3 units ---
-
-            renderTopStoresTable(categoryData, 'top-stores-container', totalEvents);
-        })
-        .catch(error => {
-            console.error("Hata oluştu:", error);
-            localStorage.removeItem("top3CombinedUnits"); // Clear localStorage on error
-        });
-
-
-    fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(response => response.json())
-        .then(async searchedData => {
-            console.log("Gelen event verileri (searched):", searchedData);
-
-            const titleEventCountMap = {};
-            let totalEvents = 0;
-
-            // Searched verisini işle
-            searchedData.forEach(item => {
-                const labelParts = item.label.split('->');
-                if (labelParts.length > 1) {
-                    const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events;
-
-                    titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + nbEvents;
-                    totalEvents += nbEvents;
-                }
-            });
-
-            // Touched verisini al
-            const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
-            const touchedData = await touchedResponse.json();
-            console.log("Gelen event verileri (touched):", touchedData);
-
-            // Touched verisini işle
-            for (const [eventName, count] of Object.entries(touchedData)) {
-                titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + count;
-                totalEvents += count;
-            }
-
-            // Initialized verisini al
-            const initializedResponse = await fetch(`http://localhost:3001/api/events/initialized${params}`);
-            const initializedData = await initializedResponse.json();
-            console.log("Gelen event verileri (initialized):", initializedData);
-
-            // Initialized verisini işle
-            for (const [eventName, count] of Object.entries(initializedData)) {
-                titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + count;
-                totalEvents += count;
-            }
-
-            // titleEventCountMap’i titlesWithCounts formatına çevir
-            const titlesWithCounts = Object.entries(titleEventCountMap).map(([eventName, nbEvents]) => ({
-                eventName,
-                nbEvents
-            }));
-
-            console.log("Toplam Etkinlik Sayısı (Searched + Touched + Initialized):", totalEvents);
-            console.log("titlesWithCounts:", titlesWithCounts);
-
-            // Kategorize etme işlemi
-            const categoryData = await summarizeTopFoodStoresByCategory(titlesWithCounts, `./assets/${globalSiteId}.json`, totalEvents);
-            console.log("food-data", categoryData);
-
-            if (categoryData.length > 0) {
-                const topFoodPlace = categoryData.reduce((max, current) =>
-                    current.Count > max.Count ? current : max
-                );
-
-                localStorage.setItem("mostSearchedFoodPlace", JSON.stringify({
-                    title: topFoodPlace.Title,
-                    count: topFoodPlace.Count
-                }));
-            }
-
-            renderFoodPlacesTable(categoryData, 'food-places-container', totalEvents);
-        })
-        .catch(error => {
-            console.error("Hata oluştu:", error);
-        });
-
-    fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(response => response.json())
-        .then(async searchedData => {
-            console.log("Gelen event verileri (searched):", searchedData);
-
-            const titleEventCountMap = {};
-            let totalEvents = 0;
-
-            // Searched verisini işle
-            searchedData.forEach(item => {
-                const labelParts = item.label.split('->');
-                if (labelParts.length > 1) {
-                    const eventName = labelParts[1].trim();
-                    const nbEvents = item.nb_events;
-
-                    titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + nbEvents;
-                    totalEvents += nbEvents;
-                }
-            });
-
-            // Touched verisini al
-            const touchedResponse = await fetch(`http://localhost:3001/api/events/touched${params}`);
-            const touchedData = await touchedResponse.json();
-            console.log("Gelen event verileri (touched):", touchedData);
-
-            // Touched verisini işle
-            for (const [eventName, count] of Object.entries(touchedData)) {
-                titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + count;
-                totalEvents += count;
-            }
-
-            // Initialized verisini al
-            const initializedResponse = await fetch(`http://localhost:3001/api/events/initialized${params}`);
-            const initializedData = await initializedResponse.json();
-            console.log("Gelen event verileri (initialized):", initializedData);
-
-            // Initialized verisini işle
-            for (const [eventName, count] of Object.entries(initializedData)) {
-                titleEventCountMap[eventName] = (titleEventCountMap[eventName] || 0) + count;
-                totalEvents += count;
-            }
-
-            // titleEventCountMap’i titlesWithCounts formatına çevir
-            const titlesWithCounts = Object.entries(titleEventCountMap).map(([eventName, nbEvents]) => ({
-                eventName,
-                nbEvents
-            }));
-
-            console.log("Toplam Etkinlik Sayısı (Searched + Touched + Initialized):", totalEvents);
-            console.log("titlesWithCounts-service:", titlesWithCounts);
-
-            // Kategorize etme işlemi
-            const categoryData = await summarizeTopServicesByCategory(titlesWithCounts, `./assets/${globalSiteId}.json`, totalEvents);
-            console.log("cat-data-services", categoryData);
-
-            renderServicesTable(categoryData, 'services-container', totalEvents);
-        })
-        .catch(error => {
-            console.error("Hata oluştu:", error);
-        });
-
-
-
-    fetch(`http://localhost:3001/api/campaigns${params}`)
-        .then(res => res.json())
-        .then(data => {
-            // Kampanya verisini temizleyelim
-            const cleanedData = cleanCampaignData(data);
-            console.log('Kiosk Verisi:', cleanedData);
-
-            // Eğer veri boşsa işlemleri iptal et
-            if (!cleanedData || cleanedData.length === 0) {
-                // LocalStorage temizle
-                localStorage.removeItem('mostUsedKioskId');
-                localStorage.removeItem('usagePercentage');
-
-                // Kiosk container'ı temizle
-                const container = document.getElementById("kiosks-container");
-                if (container) container.innerHTML = "";
-                console.warn("Kiosk verisi boş, işlem yapılmadı.");
-                return;
-            }
-
-            // Kiosk verisi içinde "web" veya "mobile-android" varsa tabloyu render etme
-            const isExcludedKiosk = cleanedData.some(kiosk => kiosk.kiosk === "web" || kiosk.kiosk === "mobile-android");
-            if (isExcludedKiosk) {
-                console.warn("Kiosk verisi 'web' veya 'mobile-android' içeriyor, işlem yapılmadı.");
-                return;
-            }
-
-            // Toplam kullanım sayısını hesapla
-            const totalActions = cleanedData.reduce((total, kiosk) => total + kiosk.actions, 0);
-
-            // En çok kullanılan kiosku bul
-            const mostUsedKiosk = cleanedData.reduce((max, kiosk) => kiosk.actions > max.actions ? kiosk : max, cleanedData[0]);
-
-            // En çok kullanılan kioskun ID'si ve yüzdesi
-            const mostUsedKioskId = mostUsedKiosk.kiosk;
-            const usagePercentage = ((mostUsedKiosk.actions / totalActions) * 100).toFixed(2);
-
-            // Veriyi localStorage'a kaydet
-            localStorage.setItem('mostUsedKioskId', mostUsedKioskId);
-            localStorage.setItem('usagePercentage', usagePercentage);
-
-            console.log(`En çok kullanılan kiosk: ${mostUsedKioskId}, Kullanım Yüzdesi: ${usagePercentage}%`);
-            renderKiosksTable(cleanedData, "kiosks-container");
-        })
-        .catch(error => {
-            console.error("Kampanya verisi alınırken hata oluştu:", error);
-        });
-
-
-    let ccpoResult = null;
-    let eventResult = null;
-
-    // Katlar
-    const allFloors = [-3, -2, -1, 0, 1, 2, 3];
-
-    // Tek seferlik kontrol
-    function checkAndMerge() {
-        if (ccpoResult !== null && eventResult !== null) {
-            const mergedResults = [];
-
-            // Toplamları hesapla
-            const totalCCPO = Object.values(ccpoResult).reduce((sum, val) => sum + val, 0);
-            const totalEvents = Object.values(eventResult).reduce((sum, val) => sum + val, 0);
-
-            allFloors.forEach(floor => {
-                const ccpo = ccpoResult?.[floor] || 0;
-                const events = eventResult?.[floor] || 0;
-
-                const kioskUsagePercent = totalCCPO > 0 ? ((ccpo / totalCCPO) * 100).toFixed(2) : '0.00';
-                const unitSearchPercent = totalEvents > 0 ? ((events / totalEvents) * 100).toFixed(2) : '0.00';
-
-                mergedResults.push({
-                    floor,
-                    kioskUsagePercent,
-                    unitSearchPercent
-                });
-            });
-
-            // 🔥 Tabloyu render et
-            renderFloorsTable(mergedResults, 'floors-container');
-        }
-    }
-
-    // Kampanya verisini al
-    fetch(`http://localhost:3001/api/campaigns${params}`)
-        .then(res => res.json())
-        .then(data => {
-            ccpoResult = getTotalActionsByFloor(data);
-            console.log("CCPO bak", ccpoResult);
-
-            // Tüm değerlerin 0 olup olmadığını kontrol et
-            const allZeros = Object.values(ccpoResult).every(value => value === 0);
-
-            if (allZeros) {
-                console.log("Gelen tüm veri 0. checkAndMerge() çağrılmıyor ve floors-container temizleniyor.");
-                const floorsContainer = document.getElementById('floors-container');
-                if (floorsContainer) {
-                    floorsContainer.innerHTML = '';
-                }
-            } else {
-                checkAndMerge();
-            }
-        })
-        .catch(error => {
-            console.error("Kampanya verisi alınırken hata oluştu:", error);
-        });
-
-    // Etkinlik verisini al
-    fetch(`http://localhost:3001/api/events/searched${params}`)
-        .then(response => response.json())
-        .then(async data => {
-            console.log("Gelen event verileri:", data);
-
-            const titlesWithCounts = data
-                .filter(item => item.label.includes('->'))
-                .map(item => {
-                    const eventName = item.label.split('->')[1].trim();
-                    return { eventName, nbEvents: item.nb_events };
-                });
-
-            const filepath = `./assets/${globalSiteId}.json`;
-            eventResult = await findEventFloor(titlesWithCounts, filepath);
-            console.log("Etkinlik ve Kat Bilgileri:", eventResult);
-
-            const maxEventFloor = Object.entries(eventResult).reduce((max, [floor, nbEvents]) => {
-                if (nbEvents > max.nbEvents) {
-                    return { floor, nbEvents };
-                }
-                return max;
-            }, { floor: null, nbEvents: 0 });
-
-            // En çok işlem yapılan kat ve işlem sayısını localStorage'a kaydet
-            if (maxEventFloor.floor !== null) {
-                localStorage.setItem("maxEventFloor", maxEventFloor.floor);
-                localStorage.setItem("maxEventNbEvents", maxEventFloor.nbEvents);
-                console.log("En çok işlem yapılan kat:", maxEventFloor.floor);
-                console.log("İşlem sayısı:", maxEventFloor.nbEvents);
-            }
-
-            // Eğer birden fazla kat varsa checkAndMerge çağrılır
-            const floorCount = Object.keys(eventResult).length;
-            if (floorCount > 1) {
-                checkAndMerge();
-            } else {
-                localStorage.removeItem("maxEventFloor");
-                localStorage.removeItem("maxEventNbEvents");
-                const floorsContainer = document.getElementById('floors-container');
-                floorsContainer.innerHTML = '';
-                console.log("Yalnızca tek kat bulundu, checkAndMerge çağrılmayacak.");
-            }
-        })
-        .catch(error => {
-            console.error("Etkinlik verisi alınırken hata oluştu:", error);
-        });
-
-
-
-    fetch(`http://localhost:3001/api/events/searched-daily${params}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Veriler alınırken bir hata oluştu.');
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('Daily Gelen Veri:', data);
-
-            // JSON dosyasını yükleyelim
-            const jsonFilePath = `./assets/${globalSiteId}.json`;
-
-            categorizeEventsByDayAndCategory(data, jsonFilePath)
-                .then(categorizedData => {
-                    console.log('Günlük Kategorize Edilmiş Veriler:', categorizedData);
-                    renderStoreCategoriesAreaChart(categorizedData, "area-chart-container");
-                    // Burada, kategorize edilmiş verileri kullanarak gerekli işlemleri yapabilirsiniz
-                })
-                .catch(error => {
-                    console.error('Kategorize etme sırasında hata oluştu:', error);
-                });
-        })
-        .catch(error => {
-            console.error('Hata:', error);
-        });
-
-
-
-
-
-}
-
-
-
-const deviceMap = {
-    desktop: 'Masaüstü',
-    mobile: 'Mobil',
-    tablet: 'Tablet',
-    other: 'Diğer'
-};
-
-function renderStatistics(data) {
-    const totalVisits = document.getElementById('total-visits');
-    const bounceRate = document.getElementById('bounce-rate');
-    const mostVisitedDevice = document.getElementById('most-visited-device');
-    const avgTime = document.getElementById('avg-time');
-
-    totalVisits.innerHTML = `
-    <div class="card text-white mb-3" style="background-color: #8ac9c9; mb-3">
-        <div class="card-body">
-            <h5 class="card-title">Toplam Ziyaret</h5>
-            <p class="card-text">${data.totalVisits}</p>
-        </div>
-    </div>
-`;
-
-    mostVisitedDevice.innerHTML = `
-    <div class="card text-white mb-3" style="background-color: #e0b8b8; mb-3">
-        <div class="card-body">
-            <h5 class="card-title">En Çok Kullanılan Cihaz</h5>
-            <p class="card-text">${deviceMap[data.mostVisitedDeviceType?.toLowerCase()] || data.mostVisitedDeviceType}</p>
-        </div>
-    </div>
-`;
-
-    avgTime.innerHTML = `
-    <div class="card text-white mb-3" style="background-color: #c6b4d7; mb-3">
-        <div class="card-body">
-            <h5 class="card-title">Sayfada Ortalama Kalma Süresi</h5>
-            <p class="card-text">${data.avgTimeOnPage} saniye</p>
-        </div>
-    </div>
-`;
-
-    bounceRate.innerHTML = `
-    <div class="card text-white mb-3" style="background-color: #8396d0; mb-3">
-        <div class="card-body">
-            <h5 class="card-title">Ziyaretçi İlgisi</h5>
-            <p class="card-text">
-                ${data.bounceRate
-            ? (() => {
-                const rate = parseFloat(data.bounceRate);
-                if (rate < 30) {
-                    return 'Mükemmel';
-                } else if (rate >= 30 && rate < 50) {
-                    return 'İyi';
-                } else if (rate >= 50 && rate < 70) {
-                    return 'Ortalama';
-                } else {
-                    return 'Yüksek';
-                }
-            })()
-            : 'Veri mevcut değil'
-        }
-            </p>
-        </div>
-    </div>
-`;
-}
-
-function populateSummaryData() {
-    // localStorage'dan verileri al ve sayı olarak parse et
-    const fromTo = parseInt(localStorage.getItem("fromTo") || "0");
-    const searched = parseInt(localStorage.getItem("searched") || "0");
-    const touched = parseInt(localStorage.getItem("touched") || "0");
-    const initialized = parseInt(localStorage.getItem("initialized") || "0");
-    // Toplam kullanım sayısını hesapla
-    const total = fromTo + searched + touched + initialized;
-    let date = ""; // Burada let kullanıyoruz çünkü sonrasında değiştireceğiz
-    const selectedRange = localStorage.getItem("selectedRange");
-    const startDateStr = localStorage.getItem("startDate");
-    const endDateStr = localStorage.getItem("endDate");
-
-    const formatDate = (date) => {
-        return date.toLocaleDateString("tr-TR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-        });
-    };
-
-    const getDayName = (date) => {
-        return date.toLocaleDateString("tr-TR", { weekday: "long" });
-    };
-
-    const now = new Date();
-
-    // selectedRange'e göre tarih formatını belirleyin
-    if (selectedRange) {
-        const range = parseInt(selectedRange);
-        let text = "";
-
-        if (range === 1) {
-            // Günlük tarih aralığı
-            const dayName = getDayName(now);
-            text = `${formatDate(now)} - ${dayName}, Günlük`;
-        } else if (range === 7) {
-            // Haftalık tarih aralığı
-            const past = new Date(now);
-            past.setDate(now.getDate() - 6);
-            text = `${formatDate(past)} - ${formatDate(now)}, Haftalık`;
-        } else if (range === 30) {
-            // Aylık tarih aralığı
-            const month = String(now.getMonth() + 1).padStart(2, "0");
-            const year = now.getFullYear();
-            text = `${month}/${year}, Aylık`;
-        } else if (range === 365) {
-            // Yıllık tarih aralığı
-            const year = now.getFullYear();
-            text = `${year}, Yıllık`;
-        }
-
-        date = text;
-    } else if (startDateStr && endDateStr) {
-        // Eğer startDateStr ve endDateStr varsa
-        const start = new Date(startDateStr);
-        const end = new Date(endDateStr);
-        date = `${formatDate(start)} - ${formatDate(end)}`;
-    } else {
-        date = "Tarih aralığı bulunamadı.";
-    }
-
-    // En çok kullanılan tarihi localStorage'dan al
-
-
-    // HTML elemanlarına erişim
-    const summary1Element = document.getElementById("summary-1");
-    const summary2Element = document.getElementById("summary-2");
-    const summary3Element = document.getElementById("summary-3");
-    const summary4Element = document.getElementById("summary-4");
-    const summary5Element = document.getElementById("summary-5");
-    const summary6Element = document.getElementById("summary-6");
-    const summary7Element = document.getElementById("summary-7");
-    const summary8Element = document.getElementById("summary-8");
-    const summary9Element = document.getElementById("summary-9");
-    const summary10Element = document.getElementById("summary-10");
-    const summary11Element = document.getElementById("summary-11");
-    const summary12Element = document.getElementById("summary-12");
-    const summary13Element = document.getElementById("summary-13");
-    const summary14Element = document.getElementById("summary-14");
-    const summary15Element = document.getElementById("summary-15");
-    const summary16Element = document.getElementById("summary-16");
-    const summary17Element = document.getElementById("summary-17");
-    const summary18Element = document.getElementById("summary-18");
-
-    if (summary1Element && summary2Element) {
-        // İlk özet cümlesini güncelle
-        summary1Element.innerHTML = `${date}  toplam <strong>${total.toLocaleString("tr-TR")}</strong> kez kullanım (arama, tıklama, rota çizdirme, öntanımlı seçim) yapılmıştır.`;
-
-        // İkinci özet cümlesini güncelle
-        summary2Element.innerHTML = `Kullanım sayıları <strong>${fromTo.toLocaleString("tr-TR")}</strong> rota çizdirme, <strong>${searched.toLocaleString("tr-TR")}</strong> arama, <strong>${touched.toLocaleString("tr-TR")}</strong> tıklama ve <strong>${initialized.toLocaleString("tr-TR")}</strong> öntanımlı seçim olarak dağılım göstermiştir.`;
-
-        // Üçüncü özet cümlesini temizle
-        if (summary3Element) {
-            summary3Element.textContent = '';
-        }
-    }
-
-    const mostUsedCategory = localStorage.getItem("mostUsedCategory");
-    summary4Element.textContent = "";
-
-    if (mostUsedCategory === "Stand") {
-        summary4Element.style.display = "none";
-    } else if (mostUsedCategory) {
-        summary4Element.style.display = "block"; // Eğer daha önce gizlendiyse yeniden göster
-        summary4Element.innerHTML = `Kullanıcılar arasında en çok ilgi gören kategori <strong>${mostUsedCategory}</strong> olmuştur.`;
-    }
-
-    const mostSearchedUnitData = localStorage.getItem("mostSearchedUnit");
-    summary5Element.textContent = "";
-
-    if (mostSearchedUnitData) {
-        const parsedData = JSON.parse(mostSearchedUnitData);
-        const unit = parsedData.unit;
-        const count = parsedData.count;
-
-        summary5Element.innerHTML = `Kullanıcılar tarafından en çok aranan birim <strong>${count.toLocaleString("tr-TR")}</strong> kez ile <strong>${unit}</strong> olmuştur.`;
-    }
-
-    const mostSearchedFoodPlaceData = localStorage.getItem("mostSearchedFoodPlace");
-    summary6Element.textContent = "";
-
-    if (mostSearchedFoodPlaceData) {
-        const parsedData = JSON.parse(mostSearchedFoodPlaceData);
-        const title = parsedData.title;
-        const count = parsedData.count;
-
-        summary6Element.innerHTML = `Kullanıcılar tarafından en çok aranan yeme-içme mekanı <strong>${count.toLocaleString("tr-TR")}</strong> kez ile <strong>${title}</strong> olmuştur.`;
-    }
-
-    const mostEventsData = JSON.parse(localStorage.getItem('mostEventsData'));
-    summary3Element.textContent = "";
-
-    if (mostEventsData) {
-        const mostEventsDate = mostEventsData.date;
-        const mostEventsCount = mostEventsData.totalEvents;
-        const mostEventsDateObj = new Date(mostEventsDate);
-        const mostEventsFormattedDate = formatDate(mostEventsDateObj);
-        const mostEventsDayName = getDayName(mostEventsDateObj);
-
-        // summary3 cümlesini oluştur
-        summary3Element.innerHTML = `En çok işlem yapılan gün <strong>${mostEventsCount.toLocaleString("tr-TR")}</strong> kez ile <strong>${mostEventsFormattedDate}</strong> <strong>${mostEventsDayName}</strong> günü olmuştur.`;
-    }
-
-    // 7. özet: Cihaz türü
-    const mostVisitedDeviceType = localStorage.getItem("mostVisitedDeviceType");
-    summary7Element.textContent = "";
-
-    if (mostVisitedDeviceType) {
-        summary7Element.innerHTML = `Kullanıcılar en çok <strong>${mostVisitedDeviceType.toLowerCase()}</strong> kullanarak sistemi ziyaret etmiştir.`;
-    }
-
-    // 8. özet: Toplam ziyaret sayısı
-    const totalVisits = localStorage.getItem("totalVisits");
-    summary8Element.textContent = "";
-
-    if (totalVisits) {
-        summary8Element.innerHTML = `Toplam <strong>${parseInt(totalVisits).toLocaleString("tr-TR")}</strong> kez ziyaret gerçekleşmiştir.`;
-    }
-
-    const bounceRate = localStorage.getItem("bounceRate");
-    summary9Element.textContent = "";
-
-    if (bounceRate) {
-        const rate = parseFloat(bounceRate);
-        const description = `Ziyaretçilerin <strong>%${100 - rate}</strong> kadarı içeriklerle ilgilenmiş, sitede vakit geçirmiş ve tekrar ziyaret etmiştir.`;
-
-        summary9Element.innerHTML = description;
-    }
-
-    // 10. özet: Ortalama sayfada kalma süresi
-    const avgTimeOnPage = localStorage.getItem("avgTimeOnPage");
-    summary10Element.textContent = "";
-
-    if (avgTimeOnPage) {
-        const seconds = parseInt(avgTimeOnPage);
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-
-        summary10Element.innerHTML = `Kullanıcılar sayfada ortalama <strong>${minutes}</strong> dakika <strong>${remainingSeconds}</strong> saniye kalmıştır.`;
-    }
-
-    // 11. özet: En çok işlem yapılan kat ve işlem sayısı
-    const maxEventFloor = localStorage.getItem("maxEventFloor");
-    const maxEventNbEvents = localStorage.getItem("maxEventNbEvents");
-
-    summary11Element.textContent = "";
-
-    if (maxEventFloor && maxEventNbEvents) {
-        summary11Element.style.display = "block"; // görünür yap
-        summary11Element.innerHTML = `En çok işlem yapılan kat, <strong>${maxEventFloor}</strong> olup toplamda <strong>${maxEventNbEvents}</strong> işlem gerçekleştirilmiştir.`;
-    } else {
-        summary11Element.style.display = "none"; // gizle
-    }
-
-    const mostUsedKioskId = localStorage.getItem('mostUsedKioskId');
-    const usagePercentage = localStorage.getItem('usagePercentage');
-
-    summary12Element.textContent = '';
-
-    if (mostUsedKioskId && usagePercentage) {
-        summary12Element.style.display = 'block'; // görünür yap
-        summary12Element.innerHTML = `<li>En çok kullanılan kiosk <strong>${mostUsedKioskId}</strong> olup, kullanım yüzdesi <strong>${usagePercentage}%</strong> olarak ölçülmüştür.</li>`;
-    } else {
-        summary12Element.style.display = 'none'; // gizle
-    }
-    const hourlyVisitAnalysis = JSON.parse(localStorage.getItem("hourlyVisitAnalysis"));
-    summary13Element.textContent = "";
-
-    if (hourlyVisitAnalysis && hourlyVisitAnalysis.roundedAverage) {
-        const roundedAverage = hourlyVisitAnalysis.roundedAverage;
-        summary13Element.innerHTML = `Saatlik ortalama ziyaret sayısı <strong>${roundedAverage}</strong> olarak hesaplanmıştır.`;
-    }
-    summary14Element.textContent = "";
-
-    if (hourlyVisitAnalysis && hourlyVisitAnalysis.top3AboveAverage && hourlyVisitAnalysis.peakHour !== undefined) {
-        const top3AboveAverage = hourlyVisitAnalysis.top3AboveAverage;
-        const peakHour = hourlyVisitAnalysis.peakHour;
-        const peakValue = hourlyVisitAnalysis.peakValue;
-
-        summary14Element.style.display = 'block'; // görünür yap
-
-        summary14Element.innerHTML = `
-       <li> En çok ziyaret edilen saatler:
-        <ul>
-            ${top3AboveAverage.map(({ hour, visits }) => `<li><strong>${hour}:00</strong> - ${Math.ceil(visits)} ziyaret</li>`).join('')}
-        </ul></li>`;
-    } else {
-        summary14Element.style.display = 'none'; // gizle
-    }
-
-    const significantIncreaseDates = JSON.parse(localStorage.getItem('significantIncreaseDates')) || [];
-
-    summary15Element.textContent = "";
-
-    // significantIncreaseDates'i artış yüzdesine göre azalan sırayla sıralayalım
-    const sortedIncreaseDates = significantIncreaseDates.sort((a, b) => parseFloat(b.increasePercentage) - parseFloat(a.increasePercentage));
-
-    // İlk 3 öğeyi al
-    const top3SignificantIncreases = sortedIncreaseDates.slice(0, 3);
-
-    // summary15 elementini temizle
-    summary15Element.textContent = "";
-
-    // Eğer significantIncreaseDates verisi varsa, summary15 elementini güncelle
-    if (top3SignificantIncreases.length > 0) {
-        summary15Element.style.display = 'block'; // Görünür yap
-
-        summary15Element.innerHTML = `
-        <li>Kullanımda sıçrama olan tarihler:
-            <ul>
-                ${top3SignificantIncreases.map(({ date, increasePercentage }) => `
-                    <li>
-                        <strong>${date}</strong> tarihinde ortalamaya göre %${increasePercentage} artış
-                    </li>`).join('')}
-            </ul>
-        </li>`;
-    } else {
-        summary15Element.style.display = 'none'; // Gizle
-    }
-
-    const top3CombinedUnits = JSON.parse(localStorage.getItem("top3CombinedUnits"));
-
-    // summary16Element'in içeriğini temizle
-    summary16Element.textContent = "";
-
-    // top3CombinedUnits'in var olup olmadığını ve bir dizi olup olmadığını kontrol et
-    if (top3CombinedUnits && Array.isArray(top3CombinedUnits) && top3CombinedUnits.length > 0) {
-        // Dizideki her bir öğeyi alıp 'unit (count kez)' formatına dönüştürerek bir dizi oluştur
-        const formattedUnits = top3CombinedUnits.map((item, index) => {
-            // unit ve count değerlerinin string olduğundan emin ol, hata durumunda varsayılan değer kullan
-            const unitName = String(item.unit || 'Bilinmeyen Birim');
-            const count = String(item.count || 0);
-
-            return `<strong>${unitName}</strong> (${count} kez)`;
-        });
-
-        // Oluşturulan formatlı birimleri virgülle ayırarak birleştir ve cümleyi oluştur
-        const sentence = `Kullanıcılar arasında en çok ilgi gören ilk 3 birim sırasıyla: ${formattedUnits.join(", ")}.`;
-
-        // Oluşturulan cümleyi HTML elementine yazdır
-        summary16Element.innerHTML = sentence;
-    } else {
-        // Veri yoksa veya uygun formatta değilse alternatif mesajı göster
-        summary16Element.textContent = "Henüz bir kombinasyon verisi bulunmamaktadır.";
-    }
-
-    summary17Element.textContent = ""; // Önce içeriği temizle
-
-    const topLanguages = JSON.parse(localStorage.getItem('topLanguages'));
-
-    function normalizeLanguageKey(languageKey) {
-        const match = languageKey.match(/^(.+?) - (.+?) \((.+?)\)$/);
-        if (match) {
-            const base = match[1].trim();
-            const region = match[2].trim();
-            const code = match[3].trim();
-            return `${base} (${region}) (${code})`;
-        }
-        return languageKey;
-    }
-
-    // Dil kodları için base -> detaylı eşleme (örnek: en -> en-gb)
-    const languageRedirectMap = {
-        "en": "English - United Kingdom (en-gb)",
-        "de": "German - Germany (de-de)",
-        "es": "Spanish - Spain (es-es)",
-        "fr": "French - France (fr-fr)",
-        "hr": "Croatian - Croatia (hr-hr)",
-        "it": "Italian - Italy (it-it)",
-        "ms": "Malay - Malaysia (ms-my)",
-        "nl": "Dutch - Netherlands (nl-nl)",
-        "pt": "Portuguese - Portugal (pt-pt)",
-        "qu": "Quechua - Peru (qu-pe)",
-        "se": "Sami - Norway (se-no)",
-        "sr": "Serbian - Serbia (sr-rs)",
-        "sv": "Swedish - Sweden (sv-se)",
-        "zh": "Chinese - China (zh-cn)"
-    };
-
-    fetch('assets/languageFlags.json')
-        .then(response => response.json())
-        .then(languageFlags => {
-            if (topLanguages && Object.keys(topLanguages).length > 0) {
-
-                // Base dil kodlarını detaylı versiyona aktar
-                for (const baseCode in languageRedirectMap) {
-                    const baseLabel = Object.keys(topLanguages).find(key => key.endsWith(`(${baseCode})`));
-                    const detailedKey = languageRedirectMap[baseCode];
-
-                    if (baseLabel && baseLabel !== detailedKey) {
-                        const count = topLanguages[baseLabel] || 0;
-                        if (count > 0) {
-                            topLanguages[detailedKey] = (topLanguages[detailedKey] || 0) + count;
-                            delete topLanguages[baseLabel];
-                        }
+                // Combine and simplify languages
+                const combinedLangs = {};
+                
+                entries.forEach(([lang, count]) => {
+                    const normalized = normalizeLanguage(lang);
+                    if (combinedLangs[normalized.name]) {
+                        combinedLangs[normalized.name].count += count;
+                    } else {
+                        combinedLangs[normalized.name] = {
+                            count: count,
+                            flag: normalized.flag
+                        };
                     }
-                }
-
-                const top5Languages = Object.entries(topLanguages)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 5)
-                    .map(([language, count]) => {
-                        const normalizedKey = normalizeLanguageKey(language);
-                        const flagClass = languageFlags[normalizedKey] || "flag-icon";
-
-                        // Dil adını sadece isim ve ülke ile göster (kod kısmını çıkar)
-                        const displayName = language.replace(/\s*\(([^)]+)\)\s*$/, "").trim();
-
-                        return `<li><span class="flag-icon ${flagClass}"></span> <strong>${displayName}</strong> (${count} kez)</li>`;
-                    })
-                    .join("");
-
-                summary17Element.innerHTML = `
-                <p>Kullanıcıların ülkelere göre dağılımı (ilk 5) :</p>
-                <ul>${top5Languages}</ul>
-            `;
-            } else {
-                summary17Element.textContent = "Henüz bir dil verisi bulunmamaktadır.";
+                });
+                
+                // Sort by count and take top 10
+                const sortedLangs = Object.entries(combinedLangs)
+                    .sort((a, b) => b[1].count - a[1].count)
+                    .slice(0, 10);
+                
+                const langItems = sortedLangs.map(([name, data]) => {
+                    return `<span class="language-item"><span class="flag-emoji">${data.flag}</span><strong>${name}</strong> (${utils.formatNumber(data.count)} kez)</span>`;
+                }).join('');
+                return `Kullanıcıların dillere göre dağılımı:<span class="language-list">${langItems}</span>`;
             }
-        })
-        .catch(error => {
-            console.error("languageFlags.json yüklenirken hata oluştu:", error);
-            summary17Element.textContent = "Veri yüklenemedi.";
-        });
+            return '';
+        },
+        'summary-total-visits': () => {
+            const totalVisits = utils.storage.get('totalVisits', 0);
+            if (totalVisits > 0) {
+                return `Toplam <strong>${utils.formatNumber(totalVisits)}</strong> kez ziyaret gerçekleşmiştir.`;
+            }
+            return '';
+        },
+        'summary-hourly-avg': () => {
+            const analysis = utils.storage.get('hourlyVisitAnalysis', {});
+            if (analysis.roundedAverage) {
+                return `Saatlik ortalama ziyaret sayısı <strong>${utils.formatNumber(analysis.roundedAverage)}</strong> olarak hesaplanmıştır.`;
+            }
+            return '';
+        },
+        'summary-peak-hours': () => {
+            const analysis = utils.storage.get('hourlyVisitAnalysis', {});
+            if (analysis.top3AboveAverage && analysis.top3AboveAverage.length > 0) {
+                const hoursList = analysis.top3AboveAverage.map(h => `<strong>${h.hour}:00</strong> - ${utils.formatNumber(h.visits)} ziyaret`).join(', ');
+                return `En çok ziyaret edilen saatler: ${hoursList}.`;
+            }
+            return '';
+        },
+        'summary-engagement': () => {
+            const rate = parseFloat(utils.storage.get('bounceRate', 0));
+            if (!isNaN(rate) && rate > 0) {
+                const engagementRate = (100 - rate).toFixed(0);
+                return `Ziyaretçilerin <strong>%${engagementRate}</strong> kadarı içeriklerle ilgilenmiş, sitede vakit geçirmiş ve tekrar ziyaret etmiştir.`;
+            }
+            return '';
+        },
+        'summary-top-units': () => {
+            const topUnits = utils.storage.get('topProcessedUnits', []);
+            if (topUnits.length > 0) {
+                const unitsList = topUnits.slice(0, 5).map((u, i) => 
+                    `<span class="unit-item"><strong>${i + 1}. ${u.unit}</strong> – ${utils.formatNumber(u.count)} işlem</span>`
+                ).join('');
+                return `Kullanıcılar tarafından en çok işlem yapılan birimler:<span class="units-list">${unitsList}</span>`;
+            }
+            return '';
+        },
+        'summary-kiosk': () => {
+            const kioskId = utils.storage.get('mostUsedKioskId');
+            const percentage = utils.storage.get('usagePercentage');
+            if (kioskId && percentage) {
+                return `En çok kullanılan kiosk <strong>${kioskId}</strong> olup, kullanım yüzdesi <strong>%${percentage}</strong> olarak ölçülmüştür.`;
+            }
+            return '';
+        }
+    };
 
-    const highlightedEntries = JSON.parse(localStorage.getItem("highlightedEntries"));
-    summary18Element.textContent = ""; // Önce içeriği temizle
+    Object.entries(summaryItems).forEach(([id, getText]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            const text = getText();
+            element.innerHTML = text;
+            element.style.display = text ? 'list-item' : 'none';
+        }
+    });
+}
 
-    if (highlightedEntries && Array.isArray(highlightedEntries) && highlightedEntries.length > 0) {
-        // 🔢 Count'a göre azalan sırala ve ilk 5 elemanı al
-        const top5 = highlightedEntries
-            .sort((a, b) => b.Count - a.Count)
-            .slice(0, 5);
+// =====================================================
+// Initialization
+// =====================================================
 
-        // 🔹 Liste HTML'si oluştur
-        const listItems = top5
-            .map(item => `<li><strong>${item.Title}</strong> (${item.Count} kez)</li>`)
-            .join("");
-
-        summary18Element.innerHTML = `
-        <p>Premium birimlerin işlem sayısı(ilk 5):</p>
-        <ul>${listItems}</ul>
-    `;
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Inmapper Analytics Dashboard initialized');
+    
+    // Check if this is PDF page
+    const isPdfPage = window.isPdfPage || window.location.pathname.includes('pdf_layout');
+    
+    if (isPdfPage) {
+        // PDF page - auto load data
+        await loadPdfPageData();
     } else {
-        summary18Element.textContent = "Henüz Stand, Premium kategorisinde öne çıkan başlık bulunmamaktadır.";
+        // Main dashboard - setup event listeners and load sites
+        setupEventListeners();
+        await loadSites();
+        
+        // Show welcome message if no site selected
+        if (!state.globalSiteId) {
+            utils.showToast('Başlamak için bir site seçin', 'info', 'Hoş Geldiniz');
+        }
     }
-}
-
-function normalizeLanguageKey(languageKey) {
-    const match = languageKey.match(/^(.+?) - (.+?) \((.+?)\)$/);
-    if (match) {
-        const base = match[1].trim();
-        const region = match[2].trim();
-        const code = match[3].trim();
-        return `${base} (${region}) (${code})`;
-    }
-    return languageKey; // Eşleşmezse orijinalini döndür
-}
-
-
-
-
-window.addEventListener("DOMContentLoaded", function () {
-    populateSummaryData();
 });
+
+// Export for potential external use
+window.InmapperDashboard = {
+    fetchAllData,
+    state,
+    utils
+};

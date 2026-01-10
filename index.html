@@ -1,126 +1,736 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard</title>
+  <title>Analytics Dashboard | Inmapper</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Icons - Lucide -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  
+  <!-- Flag Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icon-css/css/flag-icons.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+  
+  <!-- XLSX -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-  <!-- CoreUI CSS -->
-  <link href="https://unpkg.com/@coreui/coreui@4.0.0/dist/css/coreui.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/flowbite@1.4.2/dist/flowbite.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icon-css/css/flag-icon.min.css">
+  
+  <!-- Holidays -->
   <script src="https://unpkg.com/date-holidays@2.3.1/lib/index.umd.js"></script>
-
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-  <header>
-    <nav class="navbar">
-      <div class="logo-container">
-        <img src="assets/logo-header.png" alt="Logo" class="logo">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <img src="assets/inmapper-filigran.png" alt="Inmapper" />
+        </div>
+        <span class="logo-text"><span class="logo-in">in</span><span class="logo-mapper">Mapper</span></span>
       </div>
-      <div class="form-container">
-        <form id="date-form"
-          style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-          <input type="date" id="startDate" name="startDate"  />
-          <input type="date" id="endDate" name="endDate"  />
-          <button type="button" id="btn-1g" >1 Gün</button>
-          <button type="button" id="btn-1h" >1 Hafta</button>
-          <button type="button" id="btn-1a" >1 Ay</button>
-          <button type="button" id="btn-1y" >1 Yıl</button>
-          <button type="submit" style="background-color: #2ecc71;">Verileri Getir</button>
-        </form>
-      </div>
-      <div class="dropdown-container" style="position: relative; margin-left: auto;">
-        <button class="dropdown-btn">Site Seç</button>
-        <div class="dropdown-content" id="site-dropdown" style="display: none;">
-          <!-- Site items will be added here dynamically -->
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <span class="nav-section-title">Ana Menü</span>
+        <div class="nav-item-group">
+          <a href="#" class="nav-item active" data-scroll="top">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Dashboard</span>
+          </a>
+          <div class="nav-subitems">
+            <a href="#" class="nav-subitem" data-scroll="route-section">
+              <i data-lucide="route"></i>
+              <span>Rota Analizi</span>
+            </a>
+            <a href="#" class="nav-subitem" data-scroll="search-section">
+              <i data-lucide="search"></i>
+              <span>Arama Verileri</span>
+            </a>
+            <a href="#" class="nav-subitem" data-scroll="category-section">
+              <i data-lucide="pie-chart"></i>
+              <span>Kategoriler</span>
+            </a>
+            <a href="#" class="nav-subitem" data-scroll="tables-section">
+              <i data-lucide="table-2"></i>
+              <span>Tablolar</span>
+            </a>
+          </div>
         </div>
       </div>
-      <div style="margin-left: 20px;">
-        <!-- PDF butonu -->
-        <button onclick="goToPage('pdf_layout.html')" class="btn btn-secondary">PDF</button>
+
+      <div class="nav-section">
+        <span class="nav-section-title">Raporlar</span>
+        <a href="pdf_layout.html" class="nav-item">
+          <i data-lucide="file-text"></i>
+          <span>PDF Raporu</span>
+        </a>
+        <button class="nav-item" id="annualReportBtn" onclick="openAnnualReportModal()">
+          <i data-lucide="calendar-range"></i>
+          <span>Yıllık Özet</span>
+        </button>
       </div>
     </nav>
-  </header>
 
-  <div id="dashboard">
-    <!-- CoreUI Cards for displaying statistics -->
-    <div class="row" id="print-stats-row">
-      <div class="col-md-3" id="total-visits"></div>
-      <div class="col-md-3" id="bounce-rate"></div>
-      <div class="col-md-3" id="most-visited-device"></div>
-      <div class="col-md-3" id="avg-time"></div>
-    </div>
-    <div class="card">
-      <h2 class="header-title">Kullanım İstatistiği</h2>
-      <div class="charts-row">
-        <div id="daily-events"></div>
-        <div id="hourly-events"></div>
-      </div>
-      <div class="pie-charts-row">
-        <div id="operating-systems"></div>
-        <div id="language-distribution"></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2 class="header-title">Rota İstatistiği</h2>
-      <div class="charts-row">
-        <div id="from-to-events"></div>
-        <div id="start-to-end-events"></div>
+    <div class="sidebar-footer">
+      <div class="site-selector">
+        <button class="site-selector-btn" id="siteSelectorBtn">
+          <i data-lucide="building-2"></i>
+          <span id="selectedSiteName">Site Seç</span>
+          <i data-lucide="chevron-down"></i>
+        </button>
+        <div class="site-dropdown" id="siteDropdown">
+          <div class="site-dropdown-header">
+            <i data-lucide="search"></i>
+            <input type="text" placeholder="Site ara..." id="siteSearch">
+          </div>
+          <div class="site-dropdown-list" id="siteDropdownList">
+            <!-- Sites will be populated dynamically -->
+          </div>
+        </div>
       </div>
     </div>
-    <div class="card">
-      <h2 class="header-title">Arama İstatistiği</h2>
-      <div class="charts-row">
-        <div id="top-searchs"></div>
-        <div id="searched-events"></div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn">
+          <i data-lucide="menu"></i>
+        </button>
+        <div class="breadcrumb">
+          <span class="breadcrumb-item">Dashboard</span>
+          <i data-lucide="chevron-right"></i>
+          <span class="breadcrumb-item active">Genel Bakış</span>
+        </div>
       </div>
+
+      <div class="header-center">
+        <div class="date-range-picker">
+          <div class="date-inputs">
+            <div class="date-input-group">
+              <i data-lucide="calendar"></i>
+              <input type="date" id="startDate" class="date-input">
+            </div>
+            <span class="date-separator">—</span>
+            <div class="date-input-group">
+              <i data-lucide="calendar"></i>
+              <input type="date" id="endDate" class="date-input">
+            </div>
+          </div>
+          <div class="quick-range-btns">
+            <button type="button" class="quick-range-btn" id="btn-1g" data-days="1">Bugün</button>
+            <button type="button" class="quick-range-btn" id="btn-1h" data-days="7">7 Gün</button>
+            <button type="button" class="quick-range-btn" id="btn-1a" data-days="30">30 Gün</button>
+            <button type="button" class="quick-range-btn" id="btn-1y" data-days="365">1 Yıl</button>
+          </div>
+          <button type="button" class="fetch-btn" id="fetchDataBtn">
+            <i data-lucide="refresh-cw"></i>
+            <span>Verileri Getir</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button class="header-icon-btn" id="themeToggle" title="Tema Değiştir">
+          <svg id="themeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Dashboard Content -->
+    <div class="dashboard-content">
+      <!-- Loading Overlay -->
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <span>Veriler yükleniyor...</span>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <section class="stats-grid">
+        <div class="stat-card" id="total-visits">
+          <div class="stat-card-icon blue">
+            <i data-lucide="users"></i>
+          </div>
+          <div class="stat-card-content">
+            <span class="stat-label">Toplam Ziyaret</span>
+            <span class="stat-value">-</span>
+          </div>
+        </div>
+
+        <div class="stat-card" id="bounce-rate">
+          <div class="stat-card-icon purple">
+            <i data-lucide="activity"></i>
+          </div>
+          <div class="stat-card-content">
+            <span class="stat-label">Ziyaretçi İlgisi</span>
+            <span class="stat-value">-</span>
+          </div>
+        </div>
+
+        <div class="stat-card" id="most-visited-device">
+          <div class="stat-card-icon green">
+            <i data-lucide="smartphone"></i>
+          </div>
+          <div class="stat-card-content">
+            <span class="stat-label">En Çok Kullanılan Cihaz</span>
+            <span class="stat-value">-</span>
+          </div>
+        </div>
+
+        <div class="stat-card" id="avg-time">
+          <div class="stat-card-icon orange">
+            <i data-lucide="clock"></i>
+          </div>
+          <div class="stat-card-content">
+            <span class="stat-label">Ort. Kalma Süresi</span>
+            <span class="stat-value">-</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Usage Statistics Section -->
+      <section class="dashboard-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <i data-lucide="bar-chart-3"></i>
+            Kullanım İstatistikleri
+          </h2>
+        </div>
+
+        <div class="charts-grid equal">
+          <div class="chart-card equal-height">
+            <div class="chart-card-header">
+              <h3>Günlük Etkinlik Sayıları</h3>
+              <div class="chart-legend" id="daily-legend"></div>
+            </div>
+            <div class="chart-container" id="daily-events"></div>
+          </div>
+
+          <div class="chart-card equal-height">
+            <div class="chart-card-header">
+              <h3>Saatlik Ziyaret Dağılımı</h3>
+            </div>
+            <div class="chart-container" id="hourly-events"></div>
+          </div>
+        </div>
+
+        <div class="charts-grid two-cols">
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <h3>İşletim Sistemi Dağılımı</h3>
+            </div>
+            <div class="chart-container pie" id="operating-systems"></div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <h3>Dil Dağılımı</h3>
+            </div>
+            <div class="chart-container pie" id="language-distribution"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Route Statistics Section -->
+      <section class="dashboard-section" id="route-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <i data-lucide="route"></i>
+            Rota İstatistikleri
+          </h2>
+        </div>
+
+        <div class="charts-grid two-cols">
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <h3>En Çok Gidilen Yerler</h3>
+              <span class="chart-subtitle">Hedef noktalarına göre dağılım</span>
+            </div>
+            <div class="chart-container" id="from-to-events"></div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <h3>Başlangıç Noktaları</h3>
+              <span class="chart-subtitle">Nereden nereye analizi</span>
+            </div>
+            <div class="chart-container" id="start-to-end-events"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search Statistics Section -->
+      <section class="dashboard-section" id="search-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <i data-lucide="search"></i>
+            Arama İstatistikleri
+          </h2>
+        </div>
+
+        <div class="charts-grid two-cols">
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <h3>En Çok Yapılan Aramalar</h3>
+            </div>
+            <div class="chart-container" id="top-searchs"></div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <h3>Seçilen Yerler ve Arama Kaynakları</h3>
+            </div>
+            <div class="chart-container" id="searched-events"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Category Statistics Section -->
+      <section class="dashboard-section" id="category-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <i data-lucide="pie-chart"></i>
+            Kategorik İstatistikler
+          </h2>
+        </div>
+
+        <div class="charts-grid two-cols">
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <h3>Ana Kategorilere Göre Dağılım</h3>
+            </div>
+            <div class="chart-container pie" id="donut-container"></div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <h3>Kategorilere Göre Zaman Dağılımı</h3>
+            </div>
+            <div class="chart-container" id="area-chart-container"></div>
+          </div>
+        </div>
+
+        <div class="tables-grid" id="tables-section">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>
+                <i data-lucide="trophy"></i>
+                En Çok Etkinlik Gösteren Birimler
+              </h3>
+            </div>
+            <div class="table-container" id="top-units-table-container"></div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>
+                <i data-lucide="briefcase"></i>
+                Hizmetlere Göre Dağılım
+              </h3>
+            </div>
+            <div class="table-container" id="services-container"></div>
+          </div>
+        </div>
+
+        <div class="tables-grid">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>
+                <i data-lucide="layers"></i>
+                Katlara Göre Dağılım
+              </h3>
+            </div>
+            <div class="table-container" id="floors-container"></div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>
+                <i data-lucide="monitor"></i>
+                Kiosklara Göre Dağılım
+              </h3>
+            </div>
+            <div class="table-container" id="kiosks-container"></div>
+          </div>
+        </div>
+      </section>
     </div>
-    <div class="card">
-      <h2 class="header-title">Kategorik İstatistikler</h2>
-      <div class="charts-row">
-        <div id="donut-container"></div>
-        <div id="area-chart-container"></div>
+  </main>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // Theme toggle and navigation helpers
+    function goToPage(targetPage) {
+      const startDate = document.getElementById("startDate")?.value;
+      const endDate = document.getElementById("endDate")?.value;
+      let url = targetPage;
+      if (startDate && endDate) {
+        url += `?startDate=${startDate}&endDate=${endDate}`;
+      }
+      window.location.href = url;
+    }
+
+    // Initialize theme and icons
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize Lucide icons
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+      
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateThemeIcon(savedTheme);
+    });
+
+    function updateThemeIcon(theme) {
+      const icon = document.getElementById('themeIcon');
+      if (icon) {
+        if (theme === 'dark') {
+          // Sun icon for dark mode (click to switch to light)
+          icon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+        } else {
+          // Moon icon for light mode (click to switch to dark)
+          icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+        }
+      }
+    }
+
+    document.getElementById('themeToggle')?.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      updateThemeIcon(newTheme);
+    });
+
+    // Navigation scroll functionality
+    document.querySelectorAll('[data-scroll]').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = item.getAttribute('data-scroll');
+        
+        if (targetId === 'top') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          const targetElement = document.getElementById(targetId);
+          if (targetElement) {
+            const headerOffset = 100; // Header için boşluk
+            const elementPosition = targetElement.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+            
+            window.scrollTo({
+              top: offsetPosition,
+              behavior: 'smooth'
+            });
+          }
+        }
+        
+        // Close mobile menu if open
+        document.getElementById('sidebar')?.classList.remove('mobile-open');
+      });
+    });
+
+    // Mobile menu
+    document.getElementById('mobileMenuBtn')?.addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('mobile-open');
+    });
+
+    // Site dropdown
+    document.getElementById('siteSelectorBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('siteDropdown').classList.toggle('open');
+    });
+
+    document.addEventListener('click', () => {
+      document.getElementById('siteDropdown')?.classList.remove('open');
+    });
+  </script>
+
+  <script type="module" src="./scripts/script.js"></script>
+
+  <!-- Annual Report Site Selection Modal -->
+  <div class="annual-modal-overlay" id="annualReportModal">
+    <div class="annual-modal">
+      <div class="annual-modal-header">
+        <h2><i data-lucide="calendar-range"></i> Yıllık Özet Raporu</h2>
+        <button class="annual-modal-close" onclick="closeAnnualReportModal()">
+          <i data-lucide="x"></i>
+        </button>
       </div>
-      <div class="charts-row" style="padding: 16px; gap: 16px;">
-        <div id="top-units-table-container"></div>
-        <div id="top-stores-container"></div>
+      
+      <div class="annual-modal-body">
+        <div class="annual-modal-info">
+          <p>Rapor oluşturmak istediğiniz siteleri seçin. Aynı kategoriden birden fazla site seçerek gruplu rapor oluşturabilirsiniz.</p>
+        </div>
+        
+        <div class="annual-year-selector">
+          <label>Rapor Yılı:</label>
+          <select id="annualReportYear">
+            <script>
+              // Start from last completed year (current year - 1) for annual reports
+              const currentYear = new Date().getFullYear();
+              const startYear = currentYear - 1; // 2025 (since 2026 is not complete)
+              for (let y = startYear; y >= startYear - 4; y--) {
+                document.write(`<option value="${y}">${y}</option>`);
+              }
+            </script>
+          </select>
+        </div>
+        
+        <div class="annual-site-categories" id="annualSiteCategories">
+          <!-- Categories will be populated dynamically -->
+          <div class="loading-categories">
+            <i data-lucide="loader-2" class="spin"></i>
+            <span>Siteler yükleniyor...</span>
+          </div>
+        </div>
+        
+        <div class="annual-selection-summary" id="annualSelectionSummary" style="display: none;">
+          <div class="summary-header">
+            <i data-lucide="check-circle"></i>
+            <span>Seçilen Siteler</span>
+          </div>
+          <div class="summary-content" id="selectedSitesList"></div>
+        </div>
       </div>
-      <div class="charts-row" style="padding: 16px; gap: 16px;">
-        <div id="food-places-container"></div>
-        <div id="services-container"></div>
-      </div>
-      <div class="charts-row" style="padding: 16px; gap: 16px;">
-        <div id="floors-container"></div>
-        <div id="kiosks-container"></div>
+      
+      <div class="annual-modal-footer">
+        <button class="btn-secondary" onclick="closeAnnualReportModal()">İptal</button>
+        <button class="btn-primary" id="generateAnnualReportBtn" onclick="generateAnnualReport()" disabled>
+          <i data-lucide="file-bar-chart"></i>
+          Rapor Oluştur
+        </button>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-
   <script>
-    // Go to the specific page based on the current page state (index or pdf layout)
-    function goToPage(targetPage) {
-      const startDate = document.getElementById("startDate")?.value;
-      const endDate = document.getElementById("endDate")?.value;
+    // Annual Report Modal Functions
+    let annualSitesData = null;
+    let selectedAnnualSites = [];
 
-      let url = targetPage;
-
-      if (startDate && endDate) {
-        url += `?startDate=${startDate}&endDate=${endDate}`;
+    async function openAnnualReportModal() {
+      const modal = document.getElementById('annualReportModal');
+      modal.classList.add('open');
+      
+      // Re-init lucide icons for modal
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
       }
-
-      window.location.href = url;
+      
+      // Load sites if not already loaded
+      if (!annualSitesData) {
+        await loadAnnualSites();
+      }
     }
+
+    function closeAnnualReportModal() {
+      document.getElementById('annualReportModal').classList.remove('open');
+    }
+
+    async function loadAnnualSites() {
+      try {
+        const response = await fetch('http://localhost:3001/api/sites');
+        annualSitesData = await response.json();
+        renderAnnualSiteCategories();
+      } catch (error) {
+        console.error('Failed to load sites:', error);
+        document.getElementById('annualSiteCategories').innerHTML = `
+          <div class="error-message">
+            <i data-lucide="alert-circle"></i>
+            <span>Siteler yüklenemedi. Backend çalıştığından emin olun.</span>
+          </div>
+        `;
+      }
+    }
+
+    function renderAnnualSiteCategories() {
+      const container = document.getElementById('annualSiteCategories');
+      const grouped = annualSitesData.grouped;
+      
+      let html = '';
+      
+      Object.entries(grouped).forEach(([key, category]) => {
+        if (category.sites && category.sites.length > 0) {
+          html += `
+            <div class="annual-category" data-category="${key}">
+              <div class="annual-category-header" onclick="toggleCategory('${key}')">
+                <div class="category-info">
+                  <span class="category-icon">${category.icon}</span>
+                  <span class="category-name">${category.name}</span>
+                  <span class="category-count">(${category.sites.length} site)</span>
+                </div>
+                <div class="category-actions">
+                  <button class="select-all-btn" onclick="event.stopPropagation(); selectAllInCategory('${key}')">
+                    Tümünü Seç
+                  </button>
+                  <i data-lucide="chevron-down" class="expand-icon"></i>
+                </div>
+              </div>
+              <div class="annual-category-sites" id="category-${key}">
+                ${category.sites.map(site => `
+                  <label class="annual-site-item" data-category="${key}">
+                    <input type="checkbox" 
+                           value="${site.id}" 
+                           data-name="${site.name}"
+                           data-category="${key}"
+                           onchange="handleSiteSelection(this)">
+                    <span class="site-name">${site.name}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+      });
+      
+      container.innerHTML = html;
+      
+      // Re-init lucide icons
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    }
+
+    function toggleCategory(categoryKey) {
+      const categoryEl = document.querySelector(`.annual-category[data-category="${categoryKey}"]`);
+      categoryEl.classList.toggle('expanded');
+    }
+
+    function selectAllInCategory(categoryKey) {
+      const checkboxes = document.querySelectorAll(`input[data-category="${categoryKey}"]`);
+      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+      
+      checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+        handleSiteSelection(cb, false);
+      });
+      
+      updateSelectionSummary();
+    }
+
+    function handleSiteSelection(checkbox, updateSummary = true) {
+      const siteId = checkbox.value;
+      const siteName = checkbox.dataset.name;
+      const category = checkbox.dataset.category;
+      
+      if (checkbox.checked) {
+        // Check if selecting from a different category
+        if (selectedAnnualSites.length > 0) {
+          const existingCategory = selectedAnnualSites[0].category;
+          if (existingCategory !== category) {
+            // Uncheck all from other categories
+            document.querySelectorAll(`input[data-category]:not([data-category="${category}"])`).forEach(cb => {
+              cb.checked = false;
+            });
+            selectedAnnualSites = [];
+          }
+        }
+        
+        // Add to selection
+        if (!selectedAnnualSites.find(s => s.id === siteId)) {
+          selectedAnnualSites.push({ id: siteId, name: siteName, category: category });
+        }
+      } else {
+        // Remove from selection
+        selectedAnnualSites = selectedAnnualSites.filter(s => s.id !== siteId);
+      }
+      
+      if (updateSummary) {
+        updateSelectionSummary();
+      }
+    }
+
+    function updateSelectionSummary() {
+      const summaryEl = document.getElementById('annualSelectionSummary');
+      const listEl = document.getElementById('selectedSitesList');
+      const generateBtn = document.getElementById('generateAnnualReportBtn');
+      
+      if (selectedAnnualSites.length === 0) {
+        summaryEl.style.display = 'none';
+        generateBtn.disabled = true;
+        return;
+      }
+      
+      summaryEl.style.display = 'block';
+      generateBtn.disabled = false;
+      
+      const categoryName = annualSitesData.categories[selectedAnnualSites[0].category]?.name || 'Seçili';
+      const categoryIcon = annualSitesData.categories[selectedAnnualSites[0].category]?.icon || '📍';
+      
+      listEl.innerHTML = `
+        <div class="summary-category">
+          <span class="summary-icon">${categoryIcon}</span>
+          <span class="summary-category-name">${categoryName}</span>
+        </div>
+        <div class="summary-sites">
+          ${selectedAnnualSites.map(s => `<span class="summary-site-tag">${s.name}</span>`).join('')}
+        </div>
+        ${selectedAnnualSites.length > 1 ? `
+          <div class="summary-note">
+            <i data-lucide="info"></i>
+            <span>${selectedAnnualSites.length} sitenin verileri birleştirilerek tek rapor oluşturulacak.</span>
+          </div>
+        ` : ''}
+      `;
+      
+      // Re-init lucide icons
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    }
+
+    function generateAnnualReport() {
+      if (selectedAnnualSites.length === 0) return;
+      
+      const year = document.getElementById('annualReportYear').value;
+      
+      // Store selection in localStorage
+      localStorage.setItem('annualReportSites', JSON.stringify(selectedAnnualSites));
+      localStorage.setItem('annualReportYear', year);
+      
+      // Navigate to annual summary page
+      window.location.href = 'annual_summary.html';
+    }
+
+    // Close modal on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeAnnualReportModal();
+      }
+    });
+
+    // Close modal on overlay click
+    document.getElementById('annualReportModal')?.addEventListener('click', (e) => {
+      if (e.target.classList.contains('annual-modal-overlay')) {
+        closeAnnualReportModal();
+      }
+    });
   </script>
-    <script type="module" src="./scripts/script.js"></script>
-    
 </body>
 
 </html>

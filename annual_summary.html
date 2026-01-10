@@ -1,0 +1,3684 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yıllık Özet | Inmapper Analytics</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Icons - Lucide -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  
+  <!-- JsVectorMap for World Map -->
+  <!-- svgMap - Professional World Map -->
+  <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/svgmap@v2.18.1/dist/svg-map.umd.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/svgmap@v2.18.1/dist/svg-map.min.css" rel="stylesheet">
+  
+  <link rel="stylesheet" href="annual_summary_style.css">
+</head>
+
+<body>
+  <!-- Print Header (Screen Only) -->
+  <header class="print-header no-print">
+    <div class="header-container">
+      <div class="header-left">
+        <a href="index.html" class="back-btn">
+          <i data-lucide="arrow-left"></i>
+          <span>Dashboard'a Dön</span>
+        </a>
+      </div>
+      
+      <div class="header-center">
+        <h1>Yıllık Özet Raporu</h1>
+      </div>
+      
+      <div class="header-right">
+        <select id="yearSelector" class="year-selector">
+          <option value="2025" selected>2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+          <option value="2022">2022</option>
+        </select>
+        <button class="print-btn" onclick="window.print()">
+          <i data-lucide="printer"></i>
+          <span>Yazdır / PDF</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p class="loading-text" id="loadingText">Veriler yükleniyor...</p>
+      <div class="loading-progress-bar">
+        <div class="loading-progress-fill" id="loadingProgress" style="width: 0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Site Filter Panel (for grouped reports) -->
+  <div class="site-filter-panel" id="siteFilterPanel" style="display: none;">
+    <div class="site-filter-header">
+      <span class="filter-icon">🏢</span>
+      <span class="filter-title">Site Filtresi</span>
+      <button class="filter-toggle-btn" id="filterToggleBtn" title="Paneli Küçült">
+        <i data-lucide="chevron-left"></i>
+      </button>
+    </div>
+    <div class="site-filter-content" id="siteFilterContent">
+      <div class="filter-info">
+        <span id="selectedSiteCount">0</span> / <span id="totalSiteCount">0</span> site seçili
+      </div>
+      <div class="site-filter-list" id="siteFilterList">
+        <!-- Will be populated dynamically -->
+      </div>
+      <div class="filter-actions">
+        <button class="filter-btn select-all" id="filterSelectAll">Tümünü Seç</button>
+        <button class="filter-btn deselect-all" id="filterDeselectAll">Tümünü Kaldır</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Component Toggle Panel -->
+  <div class="component-toggle-panel" id="componentTogglePanel">
+    <div class="component-toggle-header">
+      <span class="toggle-icon">📊</span>
+      <span class="toggle-title">Bileşenler</span>
+      <button class="toggle-collapse-btn" id="componentToggleBtn" title="Paneli Küçült">
+        <i data-lucide="chevron-right"></i>
+      </button>
+    </div>
+    <div class="component-toggle-content" id="componentToggleContent">
+      <div class="toggle-info">
+        <span id="activeComponentCount">0</span> / <span id="totalComponentCount">0</span> aktif
+      </div>
+      
+      <!-- Page Groups -->
+      <div class="component-page-group" data-page="highlights">
+        <div class="page-group-header">
+          <span>📌 Öne Çıkanlar</span>
+          <button class="page-toggle-all" data-action="toggle-page">Tümü</button>
+        </div>
+        <div class="component-list">
+          <!-- Ana İstatistikler Group -->
+          <div class="component-group">
+            <label class="component-item group-header">
+              <input type="checkbox" class="component-checkbox group-checkbox" data-component="highlights-stats" data-group="main-stats" checked>
+              <span>Ana İstatistikler</span>
+              <button class="group-expand-btn" data-expanded="false">▶</button>
+            </label>
+            <div class="component-sublist" data-group="main-stats">
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="stat-total-visits" data-parent="highlights-stats" checked>
+                <span>Toplam Ziyaret</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="stat-total-interactions" data-parent="highlights-stats" checked>
+                <span>Toplam Etkileşim</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="stat-peak-month" data-parent="highlights-stats" checked>
+                <span>En Yoğun Ay</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="stat-daily-average" data-parent="highlights-stats" checked>
+                <span>Günlük Kullanıcı Ort.</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="stat-session-time" data-parent="highlights-stats" checked>
+                <span>Ort. Oturum Süresi</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="stat-engagement-rate" data-parent="highlights-stats" checked>
+                <span>Etkileşim Oranı</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="stat-events-per-user" data-parent="highlights-stats" checked>
+                <span>Kull. Başına Etk.</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Kullanıcı Sayıları Group -->
+          <div class="component-group">
+            <label class="component-item group-header">
+              <input type="checkbox" class="component-checkbox group-checkbox" data-component="user-stats" data-group="user-stats-group" checked>
+              <span>Kullanıcı Sayıları</span>
+              <button class="group-expand-btn" data-expanded="false">▶</button>
+            </label>
+            <div class="component-sublist" data-group="user-stats-group">
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="user-lowest" data-parent="user-stats" checked>
+                <span>En Düşük</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="user-highest" data-parent="user-stats" checked>
+                <span>En Yüksek</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="user-average" data-parent="user-stats" checked>
+                <span>Ortalama</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Etkileşim Sayıları Group -->
+          <div class="component-group">
+            <label class="component-item group-header">
+              <input type="checkbox" class="component-checkbox group-checkbox" data-component="interaction-stats" data-group="interaction-stats-group" checked>
+              <span>Etkileşim Sayıları</span>
+              <button class="group-expand-btn" data-expanded="false">▶</button>
+            </label>
+            <div class="component-sublist" data-group="interaction-stats-group">
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="interaction-lowest" data-parent="interaction-stats" checked>
+                <span>En Düşük</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="interaction-highest" data-parent="interaction-stats" checked>
+                <span>En Yüksek</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="interaction-average" data-parent="interaction-stats" checked>
+                <span>Ortalama</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Yıllık Karşılaştırma Group -->
+          <div class="component-group">
+            <label class="component-item group-header">
+              <input type="checkbox" class="component-checkbox group-checkbox" data-component="year-comparison" data-group="year-comparison-group" checked>
+              <span>Yıllık Karşılaştırma</span>
+              <button class="group-expand-btn" data-expanded="false">▶</button>
+            </label>
+            <div class="component-sublist" data-group="year-comparison-group">
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="comparison-visit" data-parent="year-comparison" checked>
+                <span>Ziyaretçi Büyümesi</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="comparison-interaction" data-parent="year-comparison" checked>
+                <span>Etkileşim Büyümesi</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="component-page-group" data-page="trend">
+        <div class="page-group-header">
+          <span>📈 Aylık Trend</span>
+          <button class="page-toggle-all" data-action="toggle-page">Tümü</button>
+        </div>
+        <div class="component-list">
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="monthly-trend-chart" checked>
+            <span>Trend Grafiği</span>
+          </label>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="monthly-stats-table" checked>
+            <span>Aylık Detay Tablo</span>
+          </label>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="seasonal-analysis" checked>
+            <span>Mevsimsel Analiz</span>
+          </label>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="peak-days" checked>
+            <span>En Yüksek Performans</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="component-page-group" data-page="performers">
+        <div class="page-group-header">
+          <span>🏆 Tercih Edilenler</span>
+          <button class="page-toggle-all" data-action="toggle-page">Tümü</button>
+        </div>
+        <div class="component-list">
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="top-searched" checked>
+            <span>En Çok Aranan</span>
+          </label>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="top-routed" checked>
+            <span>En Çok Rota Çizilen</span>
+          </label>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="platform-distribution" checked>
+            <span>Platform Dağılımı</span>
+          </label>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="event-type-distribution" checked>
+            <span>Etkinlik Türü</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="component-page-group" data-page="details">
+        <div class="page-group-header">
+          <span>📊 Detaylı İstatistik</span>
+          <button class="page-toggle-all" data-action="toggle-page">Tümü</button>
+        </div>
+        <div class="component-list">
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="weekly-distribution" checked>
+            <span>Haftalık Dağılım</span>
+          </label>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="hourly-distribution" checked>
+            <span>Saatlik Yoğunluk</span>
+          </label>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="monthly-deviation" checked>
+            <span>Aylık Sapma</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="component-page-group" data-page="country-language">
+        <div class="page-group-header">
+          <span>🌍 Ülke & Dil</span>
+          <button class="page-toggle-all" data-action="toggle-page">Tümü</button>
+        </div>
+        <div class="component-list">
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="country-language-map" checked>
+            <span>Harita & Dil Listesi</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="toggle-actions">
+        <button class="toggle-btn select-all" id="componentSelectAll">Tümünü Seç</button>
+        <button class="toggle-btn reset" id="componentReset">Sıfırla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Container -->
+  <div class="summary-container">
+    
+    <!-- Cover Page -->
+    <section class="summary-page cover-page">
+      <div class="cover-bg-pattern"></div>
+      <div class="cover-content">
+        <div class="cover-header">
+          <div class="inmapper-brand">
+            <span class="brand-in">in</span><span class="brand-mapper">Mapper</span>
+          </div>
+        </div>
+        
+        <div class="cover-center">
+          <div class="cover-icon">
+            <i data-lucide="bar-chart-2"></i>
+          </div>
+          <h1 class="cover-title">Kullanım Özeti</h1>
+          <p class="cover-subtitle">İnteraktif Harita Hizmetleri</p>
+          <div class="cover-year" id="coverYear">2025</div>
+          <div class="cover-site-badge" id="coverSiteName">
+            <img id="coverSiteLogo" src="assets/inmapper.png" alt="Site Logo" class="cover-site-logo">
+          </div>
+        </div>
+        
+        <div class="cover-footer">
+          <div class="cover-decoration">
+            <div class="deco-line"></div>
+            <img src="assets/inmapper-filigran.png" alt="" class="watermark-logo">
+            <div class="deco-line"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Highlights Page -->
+    <section class="summary-page highlights-page">
+      <div class="page-bg-accent"></div>
+      <div class="page-content">
+        <div class="page-header-bar">
+          <div class="header-icon">
+            <i data-lucide="star"></i>
+          </div>
+          <h2>Öne Çıkanlar</h2>
+        </div>
+
+        <div class="highlights-grid" data-component="highlights-stats">
+          <!-- Main Stat Card -->
+          <div class="highlight-card main-stat" data-component="stat-total-visits">
+            <div class="stat-icon-bg">
+              <i data-lucide="users"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Toplam Ziyaret</span>
+              <span class="stat-value" id="totalVisits">0</span>
+            </div>
+          </div>
+
+          <!-- Secondary Stats -->
+          <div class="highlight-card secondary-stat" data-component="stat-total-interactions">
+            <div class="stat-icon-bg orange">
+              <i data-lucide="mouse-pointer-click"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Toplam Etkileşim</span>
+              <span class="stat-value" id="totalInteractions">0</span>
+            </div>
+          </div>
+
+          <div class="highlight-card secondary-stat" data-component="stat-peak-month">
+            <div class="stat-icon-bg green">
+              <i data-lucide="trending-up"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">En Yoğun Ay</span>
+              <span class="stat-value" id="peakMonth">-</span>
+              <span class="stat-sub" id="peakMonthVisits">0 ziyaret</span>
+            </div>
+          </div>
+
+          <div class="highlight-card secondary-stat" data-component="stat-daily-average">
+            <div class="stat-icon-bg purple">
+              <i data-lucide="calendar-days"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Günlük Kullanıcı Ort.</span>
+              <span class="stat-value" id="dailyAverage">0</span>
+            </div>
+          </div>
+
+          <div class="highlight-card secondary-stat" data-component="stat-session-time">
+            <div class="stat-icon-bg teal">
+              <i data-lucide="clock"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Ort. Oturum Süresi</span>
+              <span class="stat-value" id="avgSessionTime">-</span>
+            </div>
+          </div>
+
+          <div class="highlight-card secondary-stat" data-component="stat-engagement-rate">
+            <div class="stat-icon-bg pink">
+              <i data-lucide="activity"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Etkileşim Oranı</span>
+              <span class="stat-value" id="engagementRate">-</span>
+            </div>
+          </div>
+
+          <div class="highlight-card secondary-stat" data-component="stat-events-per-user">
+            <div class="stat-icon-bg orange">
+              <i data-lucide="repeat"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Kull. Başına Etk.</span>
+              <span class="stat-value" id="eventsPerUser">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kullanıcı İstatistikleri -->
+        <div class="component-wrapper" data-component="user-stats">
+          <div class="trend-section-label">Kullanıcı Sayıları</div>
+          <div class="trend-summary">
+            <div class="trend-stat" data-component="user-lowest">
+              <span class="trend-label">En Düşük</span>
+              <span class="trend-month" id="lowestMonth">-</span>
+              <span class="trend-value" id="lowestValue">0</span>
+            </div>
+            <div class="trend-stat highlight" data-component="user-highest">
+              <span class="trend-label">En Yüksek</span>
+              <span class="trend-month" id="highestMonth">-</span>
+              <span class="trend-value" id="highestValue">0</span>
+            </div>
+            <div class="trend-stat" data-component="user-average">
+              <span class="trend-label">Ortalama</span>
+              <span class="trend-month">Aylık</span>
+              <span class="trend-value" id="monthlyAverage">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Etkileşim İstatistikleri -->
+        <div class="component-wrapper" data-component="interaction-stats">
+          <div class="trend-section-label">Etkileşim Sayıları</div>
+          <div class="trend-summary">
+            <div class="trend-stat" data-component="interaction-lowest">
+              <span class="trend-label">En Düşük</span>
+              <span class="trend-month" id="lowestInteractionMonth">-</span>
+              <span class="trend-value" id="lowestInteractionValue">0</span>
+            </div>
+            <div class="trend-stat highlight-red" data-component="interaction-highest">
+              <span class="trend-label">En Yüksek</span>
+              <span class="trend-month" id="highestInteractionMonth">-</span>
+              <span class="trend-value" id="highestInteractionValue">0</span>
+            </div>
+            <div class="trend-stat" data-component="interaction-average">
+              <span class="trend-label">Ortalama</span>
+              <span class="trend-month">Aylık</span>
+              <span class="trend-value" id="monthlyInteractionAverage">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Year Comparison -->
+        <div class="comparison-section" data-component="year-comparison">
+          <h3>Yıllık Karşılaştırma</h3>
+          <div class="comparison-cards">
+            <div class="comparison-card positive" id="visitGrowthCard" data-component="comparison-visit">
+              <span class="comparison-label">Ziyaretçi Büyümesi</span>
+              <span class="comparison-value" id="visitGrowth">+0%</span>
+              <span class="comparison-detail" id="visitGrowthDetail">artış</span>
+              <span class="comparison-range" id="visitGrowthRange">0 → 0</span>
+            </div>
+            <div class="comparison-card positive" id="interactionGrowthCard" data-component="comparison-interaction">
+              <span class="comparison-label">Etkileşim Büyümesi</span>
+              <span class="comparison-value" id="interactionGrowth">+0%</span>
+              <span class="comparison-detail" id="interactionGrowthDetail">artış</span>
+              <span class="comparison-range" id="interactionGrowthRange">0 → 0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Monthly Trend Page -->
+    <section class="summary-page trend-page">
+      <div class="page-content">
+        <div class="page-header-bar">
+          <div class="header-icon blue">
+            <i data-lucide="trending-up"></i>
+          </div>
+          <h2>Aylık Trend</h2>
+        </div>
+
+        <div class="component-wrapper" data-component="monthly-trend-chart">
+          <div class="trend-chart-container">
+            <canvas id="monthlyTrendChart"></canvas>
+          </div>
+          <p class="chart-footnote">*Etkileşim: Arama, Rota Çizme, Tıklama gibi aksiyonların toplamını tanımlamaktadır.</p>
+        </div>
+
+        <!-- Monthly Statistics Table -->
+        <div class="monthly-stats-section" data-component="monthly-stats-table">
+          <h3>Aylık Detay İstatistikler</h3>
+          <div class="monthly-stats-table" id="monthlyStatsTable">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Seasonal Analysis & Peak Days - Compact row -->
+        <div class="trend-bottom-row">
+          <!-- Seasonal Analysis -->
+          <div class="seasonal-section compact" data-component="seasonal-analysis">
+            <h3>Mevsimsel Analiz</h3>
+            <div class="seasonal-grid" id="seasonalGrid">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Peak Performance Days -->
+          <div class="peak-days-section compact" data-component="peak-days">
+            <h3>En Yüksek Performans Günü</h3>
+            <div class="peak-days-grid">
+              <div class="peak-card visits">
+                <div class="peak-icon">📈</div>
+                <div class="peak-label">En Yüksek Ziyaret</div>
+                <div class="peak-date" id="peakVisitDate">-</div>
+                <div class="peak-value" id="peakVisitValue">0</div>
+              </div>
+              <div class="peak-card interactions">
+                <div class="peak-icon">⚡</div>
+                <div class="peak-label">En Yüksek Etkileşim</div>
+                <div class="peak-date" id="peakInteractionDate">-</div>
+                <div class="peak-value" id="peakInteractionValue">0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Site Performance Page (for grouped reports) -->
+    <section class="summary-page site-performance-page" id="sitePerformancePage" style="display: none;">
+      <div class="page-content">
+        <div class="page-header-bar">
+          <div class="header-icon purple">
+            <i data-lucide="building-2"></i>
+          </div>
+          <h2>Site Bazlı Performans</h2>
+        </div>
+
+        <div class="site-performance-section" id="sitePerformanceSection">
+          <div class="site-performance-table" id="sitePerformanceTable">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top Performers Page -->
+    <section class="summary-page performers-page">
+      <div class="page-content">
+        <div class="page-header-bar">
+          <div class="header-icon gold">
+            <i data-lucide="trophy"></i>
+          </div>
+          <h2>En Çok Tercih Edilenler</h2>
+        </div>
+
+        <div class="performers-grid">
+          <!-- Most Searched -->
+          <div class="performer-card" data-component="top-searched">
+            <div class="performer-header">
+              <i data-lucide="search"></i>
+              <span>En Çok Aranan</span>
+            </div>
+            <div class="performer-list" id="topSearchedList">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Most Routed -->
+          <div class="performer-card" data-component="top-routed">
+            <div class="performer-header">
+              <i data-lucide="map-pin"></i>
+              <span>En Çok Rota Çizilen</span>
+            </div>
+            <div class="performer-list" id="topRoutedList">
+              <!-- Will be populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Platform Distribution -->
+        <div class="platform-section" data-component="platform-distribution">
+          <h3>Kullanıcı Platform Dağılımı</h3>
+          <div class="platform-bars">
+            <div class="platform-bar" id="androidBar">
+              <div class="platform-icon android">
+                <i data-lucide="smartphone"></i>
+              </div>
+              <div class="platform-info">
+                <span class="platform-name">Android</span>
+                <div class="platform-progress">
+                  <div class="platform-fill android" style="width: 0%"></div>
+                </div>
+              </div>
+              <span class="platform-value">0</span>
+            </div>
+            <div class="platform-bar" id="iosBar">
+              <div class="platform-icon ios">
+                <i data-lucide="smartphone"></i>
+              </div>
+              <div class="platform-info">
+                <span class="platform-name">iOS</span>
+                <div class="platform-progress">
+                  <div class="platform-fill ios" style="width: 0%"></div>
+                </div>
+              </div>
+              <span class="platform-value">0</span>
+            </div>
+            <div class="platform-bar" id="webBar">
+              <div class="platform-icon web">
+                <i data-lucide="globe"></i>
+              </div>
+              <div class="platform-info">
+                <span class="platform-name">Web</span>
+                <div class="platform-progress">
+                  <div class="platform-fill web" style="width: 0%"></div>
+                </div>
+              </div>
+              <span class="platform-value">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Event Type Distribution -->
+        <div class="event-type-section" data-component="event-type-distribution">
+          <h3>Etkinlik Türü Dağılımı</h3>
+          <div class="event-type-chart">
+            <canvas id="eventTypeChart"></canvas>
+          </div>
+          <div class="event-type-legend" id="eventTypeLegend"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detailed Statistics Page -->
+    <section class="summary-page details-page">
+      <div class="page-content">
+        <div class="page-header-bar">
+          <div class="header-icon green">
+            <i data-lucide="bar-chart-3"></i>
+          </div>
+          <h2>Detaylı İstatistikler</h2>
+        </div>
+
+        <!-- Day of Week Distribution - Full Width -->
+        <div class="day-of-week-section" data-component="weekly-distribution">
+          <h4>Haftalık Dağılım</h4>
+          <div class="day-of-week-chart-container">
+            <canvas id="dayOfWeekChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Hourly Activity -->
+        <div class="hourly-section" data-component="hourly-distribution">
+          <h4>Saatlik Yoğunluk Dağılımı</h4>
+          <div class="hourly-chart-container">
+            <canvas id="hourlyChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Monthly Growth -->
+        <div class="growth-section" data-component="monthly-deviation">
+          <h4>Aylık Ziyaretçi Sapması <span class="avg-info" id="avgInfo">(Ort: 0)</span></h4>
+          <div class="growth-bars" id="growthBars">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Country & Language Distribution Page -->
+    <section class="summary-page country-language-page">
+      <div class="page-content">
+        <div class="page-header-bar">
+          <div class="header-icon teal">
+            <i data-lucide="globe-2"></i>
+          </div>
+          <h2>Ülke ve Dil Dağılımı</h2>
+        </div>
+
+        <!-- Map and Language List Combined -->
+        <div class="geo-distribution" data-component="country-language-map">
+          <!-- Map Area -->
+          <div class="geo-map-area">
+            <div id="geoMapContainer"></div>
+          </div>
+          <!-- Language List -->
+          <div class="geo-language-list" id="geoLanguageList">
+            <!-- Languages will be populated here -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+  </div>
+
+  <script>
+    // =====================================================
+    // Configuration
+    // =====================================================
+    const API_BASE_URL = 'http://localhost:3001/api';
+    
+    // =====================================================
+    // State
+    // =====================================================
+    let annualData = {
+      year: 2025,
+      monthlyVisits: [],
+      monthlyInteractions: [],
+      dailyData: {},
+      platforms: { android: 0, ios: 0, web: 0 },
+      topSearched: [],
+      topRouted: [],
+      languages: []
+    };
+    
+    let isLoading = false;
+    
+    // For site filtering in grouped reports
+    let fullSiteDataMap = null;       // Complete data for all sites
+    let allSelectedSites = [];        // All sites from initial selection
+    let activeSiteIds = new Set();    // Currently active (checked) site IDs
+    let currentYear = null;           // Current report year
+
+    // Initialize icons
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+      
+      // Initialize component toggle panel first
+      initComponentTogglePanel();
+      
+      initAnnualSummary();
+    });
+
+    // Format number with thousands separator
+    function formatNumber(num) {
+      return new Intl.NumberFormat('tr-TR').format(num);
+    }
+
+    // Get month name in Turkish
+    function getMonthName(monthIndex) {
+      const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
+                      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+      return months[monthIndex];
+    }
+
+    // Get days in month
+    function getDaysInMonth(year, month) {
+      return new Date(year, month + 1, 0).getDate();
+    }
+
+    // Format date as YYYY-MM-DD
+    function formatDateParam(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Show loading state
+    function showLoading(show) {
+      isLoading = show;
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      if (loadingOverlay) {
+        loadingOverlay.style.display = show ? 'flex' : 'none';
+      }
+    }
+
+    // API fetch helper
+    async function apiFetch(endpoint, params = {}) {
+      const queryString = new URLSearchParams(params).toString();
+      const url = `${API_BASE_URL}${endpoint}${queryString ? '?' + queryString : ''}`;
+      
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(`API Error (${endpoint}):`, error);
+        return null;
+      }
+    }
+
+    // Create empty data collector
+    function createEmptyDataCollector() {
+      return {
+        monthlyVisits: new Array(12).fill(0),
+        monthlyInteractions: new Array(12).fill(0),
+        allDailyData: {},
+        totalPlatforms: { android: 0, ios: 0, web: 0 },
+        allSearchTerms: {},
+        allRouteDestinations: {},
+        eventSummary: { fromTo: 0, searched: 0, touched: 0, initialized: 0 },
+        allLanguages: {},
+        hourlyData: new Array(24).fill(0),
+        totalAvgTime: 0,
+        totalBounceRate: 0,
+        statsCount: 0,
+        dayOfWeekData: new Array(7).fill(0),
+        allCountries: {}
+      };
+    }
+
+    // Update header with selected sites info
+    function updateHeaderWithSites(sites) {
+      const headerCenter = document.querySelector('.header-center h1');
+      const coverSubtitle = document.getElementById('coverSiteName');
+      
+      if (sites.length === 1) {
+        // Single site
+        if (coverSubtitle) {
+          coverSubtitle.textContent = sites[0].name;
+        }
+      } else {
+        // Multiple sites - grouped report
+        const siteNames = sites.map(s => s.name);
+        const shortNames = siteNames.map(n => {
+          // Extract short name (e.g., "TK / IST" -> "IST")
+          const parts = n.split('/');
+          return parts.length > 1 ? parts[parts.length - 1].trim() : n;
+        });
+        
+        if (coverSubtitle) {
+          coverSubtitle.innerHTML = `
+            <span class="grouped-report-badge">Gruplu Rapor</span>
+            <span class="grouped-sites">${shortNames.join(' + ')}</span>
+          `;
+        }
+        
+        if (headerCenter) {
+          headerCenter.innerHTML = `Yıllık Özet Raporu <span class="site-count-badge">${sites.length} Site</span>`;
+        }
+      }
+    }
+
+    // Initialize Annual Summary
+    async function initAnnualSummary() {
+      // Check for year from modal selection
+      const modalYear = localStorage.getItem('annualReportYear');
+      const yearSelector = document.getElementById('yearSelector');
+      
+      // Set year selector to modal year if available
+      if (modalYear && yearSelector) {
+        yearSelector.value = modalYear;
+      }
+      
+      const selectedYear = yearSelector?.value || new Date().getFullYear().toString();
+
+      // Update cover
+      document.getElementById('coverYear').textContent = selectedYear;
+      
+      // Update footer year
+      const footerYearEl = document.getElementById('footerYear');
+      if (footerYearEl) {
+        footerYearEl.textContent = selectedYear;
+      }
+
+      // Get selected sites for logo
+      const annualReportSitesJson = localStorage.getItem('annualReportSites');
+      let selectedSites = [];
+      
+      if (annualReportSitesJson) {
+        try {
+          selectedSites = JSON.parse(annualReportSitesJson);
+        } catch (e) {}
+      }
+      
+      // Fallback to single site
+      if (selectedSites.length === 0) {
+        const siteId = localStorage.getItem('selectedSiteId');
+        if (siteId) {
+          selectedSites = [{ id: siteId, name: localStorage.getItem('selectedSiteName') || '' }];
+        }
+      }
+
+      // Set logo
+      if (selectedSites.length > 0) {
+        const logoImg = document.getElementById('coverSiteLogo');
+        // For multi-site, try to use first site's logo or fallback to inmapper
+        logoImg.src = `assets/${selectedSites[0].id}.png`;
+        logoImg.onerror = () => { logoImg.src = 'assets/inmapper.png'; };
+      }
+
+      // Load data
+      await loadAnnualData(selectedYear);
+      
+      // Clear modal data after loading (so refresh uses same data)
+      // localStorage.removeItem('annualReportSites');
+      // localStorage.removeItem('annualReportYear');
+    }
+
+    // Fetch data for a single month - using backend endpoints
+    async function fetchMonthData(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0); // Last day of month
+      
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+      
+      const results = {
+        visits: 0,        // Kullanıcı sayısı (ziyaret)
+        interactions: 0,  // Etkileşim sayısı (tıklama, arama, rota vb.)
+        dailyData: {}
+      };
+
+      try {
+        // Fetch user statistics for visits (monthly total)
+        const userStats = await apiFetch('/user-statistics', params);
+        if (userStats && userStats.totalVisits) {
+          results.visits = userStats.totalVisits;
+        }
+
+        // Fetch daily events count for interactions
+        const dailyData = await apiFetch('/events/daily-count', params);
+        if (Array.isArray(dailyData)) {
+          dailyData.forEach(day => {
+            const dayInteractions = day.totalEvents || 0;
+            results.dailyData[day.date] = {
+              visits: 0,  // Will be filled later if needed
+              interactions: dayInteractions
+            };
+            results.interactions += dayInteractions;
+          });
+        }
+        
+        // Try to get daily visits data from new endpoint
+        try {
+          const dailyVisitsData = await apiFetch('/daily-visits', params);
+          
+          if (dailyVisitsData && typeof dailyVisitsData === 'object') {
+            Object.entries(dailyVisitsData).forEach(([date, visits]) => {
+              if (!results.dailyData[date]) {
+                results.dailyData[date] = { visits: 0, interactions: 0 };
+              }
+              results.dailyData[date].visits = visits || 0;
+            });
+          }
+        } catch (err) {
+          console.log('Daily visits data not available');
+        }
+
+        // Fallback: if visits is 0, try to get from summary
+        if (results.visits === 0) {
+          const summaryData = await apiFetch('/events/summary-counts', params);
+          if (summaryData && summaryData.total) {
+            results.interactions = summaryData.total;
+          }
+        }
+        
+      } catch (error) {
+        console.error(`Error fetching month ${month + 1}/${year}:`, error);
+      }
+
+      return results;
+    }
+
+    // Fetch platform data for a month
+    async function fetchMonthPlatformData(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const platforms = { android: 0, ios: 0, web: 0 };
+
+      try {
+        const osData = await apiFetch('/os-distribution', params);
+
+        // Handle array format: [{osFamily: "iOS", visits: 123}, ...]
+        if (Array.isArray(osData)) {
+          osData.forEach(item => {
+            const label = (item.osFamily || '').toLowerCase();
+            const visits = item.visits || 0;
+            
+            if (label.includes('android')) {
+              platforms.android += visits;
+            } else if (label.includes('ios')) {
+              platforms.ios += visits;
+            } else {
+              platforms.web += visits;
+            }
+          });
+        }
+        // Handle object format: {Android: 123, iOS: 456, ...}
+        else if (osData && typeof osData === 'object') {
+          Object.entries(osData).forEach(([os, count]) => {
+            const label = os.toLowerCase();
+            const visits = count || 0;
+            
+            if (label.includes('android')) {
+              platforms.android += visits;
+            } else if (label.includes('ios')) {
+              platforms.ios += visits;
+            } else {
+              platforms.web += visits;
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching platform data for month ${month + 1}:`, error);
+      }
+
+      return platforms;
+    }
+
+    // Fetch search data for a month
+    async function fetchMonthSearchData(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const searchTerms = {};
+
+      try {
+        const searchData = await apiFetch('/events/searched', params);
+
+        if (Array.isArray(searchData)) {
+          searchData.forEach(item => {
+            const parts = item.label?.split('->');
+            if (parts && parts.length > 1) {
+              const name = parts[1].trim();
+              if (!name.includes('Direct?')) {
+                searchTerms[name] = (searchTerms[name] || 0) + (item.nb_events || 0);
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching search data for month ${month + 1}:`, error);
+      }
+
+      return searchTerms;
+    }
+
+    // Fetch route data for a month
+    async function fetchMonthRouteData(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const routeDestinations = {};
+
+      try {
+        const routeData = await apiFetch('/events/from-to-names', params);
+
+        if (Array.isArray(routeData)) {
+          routeData.forEach(item => {
+            const parts = item.label?.split('->');
+            if (parts && parts.length > 1) {
+              const destination = parts[1].trim();
+              if (!destination.includes('Direct?')) {
+                routeDestinations[destination] = (routeDestinations[destination] || 0) + (item.nb_events || 0);
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching route data for month ${month + 1}:`, error);
+      }
+
+      return routeDestinations;
+    }
+
+    // Fetch event summary counts for a month
+    async function fetchMonthEventSummary(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const summary = { fromTo: 0, searched: 0, touched: 0, initialized: 0 };
+
+      try {
+        const data = await apiFetch('/events/summary-counts', params);
+        if (data) {
+          summary.fromTo = data.fromTo || 0;
+          summary.searched = data.searched || 0;
+          summary.touched = data.touched || 0;
+          summary.initialized = data.initialized || 0;
+        }
+      } catch (error) {
+        console.error(`Error fetching event summary for month ${month + 1}:`, error);
+      }
+
+      return summary;
+    }
+
+    // Fetch language distribution for a month
+    async function fetchMonthLanguageData(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const languages = {};
+
+      try {
+        const langData = await apiFetch('/user-language-distribution', params);
+        if (langData && typeof langData === 'object') {
+          Object.entries(langData).forEach(([lang, count]) => {
+            languages[lang] = count || 0;
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching language data for month ${month + 1}:`, error);
+      }
+
+      return languages;
+    }
+
+    // Fetch hourly visits for a month
+    async function fetchMonthHourlyData(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const hourlyData = new Array(24).fill(0);
+
+      try {
+        const data = await apiFetch('/hourly-visits', params);
+        if (data && data.hourlyVisits) {
+          data.hourlyVisits.forEach((count, hour) => {
+            hourlyData[hour] += count;
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching hourly data for month ${month + 1}:`, error);
+      }
+
+      return hourlyData;
+    }
+
+    // Fetch user statistics for a month
+    async function fetchMonthUserStats(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const stats = { avgTimeOnPage: 0, bounceRate: 0 };
+
+      try {
+        const data = await apiFetch('/user-statistics', params);
+        if (data) {
+          stats.avgTimeOnPage = data.avgTimeOnPage || 0;
+          stats.bounceRate = parseFloat(data.bounceRate) || 0;
+        }
+      } catch (error) {
+        console.error(`Error fetching user stats for month ${month + 1}:`, error);
+      }
+
+      return stats;
+    }
+
+    // Fetch day of week distribution for a month
+    async function fetchMonthDayOfWeek(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const dayData = [0, 0, 0, 0, 0, 0, 0]; // Mon-Sun
+
+      try {
+        const data = await apiFetch('/day-of-week', params);
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            const idx = item.dayIndex - 1; // 1-7 to 0-6
+            if (idx >= 0 && idx < 7) {
+              dayData[idx] += item.visits || 0;
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching day of week for month ${month + 1}:`, error);
+      }
+
+      return dayData;
+    }
+
+    // Fetch country distribution for a month
+    async function fetchMonthCountryData(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      const countries = {};
+
+      try {
+        const data = await apiFetch('/country-distribution', params);
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            const key = item.country || 'Unknown';
+            if (!countries[key]) {
+              countries[key] = { visits: 0, code: item.countryCode };
+            }
+            countries[key].visits += item.visits || 0;
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching country data for month ${month + 1}:`, error);
+      }
+
+      return countries;
+    }
+
+
+    // Load annual data - fetch month by month with parallel requests
+    async function loadAnnualData(year) {
+      // Check for multi-site selection from modal
+      const annualReportSitesJson = localStorage.getItem('annualReportSites');
+      let selectedSites = [];
+      
+      if (annualReportSitesJson) {
+        try {
+          selectedSites = JSON.parse(annualReportSitesJson);
+        } catch (e) {
+          console.error('Error parsing annual report sites:', e);
+        }
+      }
+      
+      // Fallback to single site selection
+      if (selectedSites.length === 0) {
+        const siteId = localStorage.getItem('selectedSiteId');
+        const siteName = localStorage.getItem('selectedSiteName') || 'Seçili Site';
+        if (siteId) {
+          selectedSites = [{ id: siteId, name: siteName }];
+        }
+      }
+      
+      if (selectedSites.length === 0) {
+        console.warn('No site selected');
+        showNoSiteSelected(year);
+        return;
+      }
+
+      // Update header with site info
+      updateHeaderWithSites(selectedSites);
+
+      showLoading(true);
+      
+      const totalSites = selectedSites.length;
+      const isGroupedReport = totalSites > 1;
+      
+      if (isGroupedReport) {
+        updateLoadingProgress(0, `${totalSites} site için yıllık veriler hazırlanıyor...`);
+      } else {
+        updateLoadingProgress(0, 'Yıllık veriler hazırlanıyor...');
+      }
+
+      const yearNum = parseInt(year);
+      const currentDate = new Date();
+      const nowYear = currentDate.getFullYear(); // Renamed to avoid shadowing global currentYear
+      const currentMonth = currentDate.getMonth();
+      
+      // Determine how many months to fetch for current year
+      const monthsToFetch = yearNum === nowYear ? currentMonth + 1 : 12;
+
+      // ===== GROUPED REPORT: Collect data per site =====
+      const siteDataMap = {}; // { siteId: { name, data } }
+      const aggregatedData = createEmptyDataCollector();
+      
+      // Fetch current year data for all selected sites
+      const progressPerSite = 40 / totalSites;
+      for (let i = 0; i < selectedSites.length; i++) {
+        const site = selectedSites[i];
+        const siteProgress = i * progressPerSite;
+        
+        if (isGroupedReport) {
+          updateLoadingProgress(siteProgress, `${site.name} verileri alınıyor (${i + 1}/${totalSites})...`);
+        }
+        
+        // Create separate collector for each site
+        const siteData = createEmptyDataCollector();
+        await fetchYearData(site.id, yearNum, monthsToFetch, siteData, siteProgress, siteProgress + progressPerSite, site.name);
+        
+        // Store site-specific data
+        siteDataMap[site.id] = {
+          name: site.name,
+          data: siteData,
+          totalVisits: siteData.monthlyVisits.reduce((a, b) => a + b, 0),
+          totalInteractions: siteData.monthlyInteractions.reduce((a, b) => a + b, 0)
+        };
+        
+        // Aggregate into total
+        aggregateDataCollector(aggregatedData, siteData);
+      }
+
+      // Fetch previous year data for comparison
+      updateLoadingProgress(50, `${yearNum - 1} yılı verileri alınıyor (karşılaştırma için)...`);
+      
+      const prevYearData = createEmptyDataCollector();
+      
+      // Fetch previous year for all selected sites
+      const prevProgressPerSite = 40 / totalSites;
+      for (let i = 0; i < selectedSites.length; i++) {
+        const site = selectedSites[i];
+        const siteProgress = 50 + (i * prevProgressPerSite);
+        
+        const sitePrevData = createEmptyDataCollector();
+        await fetchYearData(site.id, yearNum - 1, 12, sitePrevData, siteProgress, siteProgress + prevProgressPerSite, site.name);
+        aggregateDataCollector(prevYearData, sitePrevData);
+        
+        // Store previous year data in siteDataMap for filtering
+        if (siteDataMap[site.id]) {
+          siteDataMap[site.id].prevYearData = sitePrevData;
+        }
+      }
+
+      // ===== Calculate totals from aggregated data =====
+      const totalVisits = aggregatedData.monthlyVisits.reduce((a, b) => a + b, 0);
+      const totalInteractions = aggregatedData.monthlyInteractions.reduce((a, b) => a + b, 0);
+      const prevTotalVisits = prevYearData.monthlyVisits.reduce((a, b) => a + b, 0);
+      const prevTotalInteractions = prevYearData.monthlyInteractions.reduce((a, b) => a + b, 0);
+      
+      // Calculate year-over-year growth for visits
+      let visitGrowth = 0;
+      if (prevTotalVisits > 0) {
+        visitGrowth = ((totalVisits - prevTotalVisits) / prevTotalVisits * 100).toFixed(1);
+      }
+
+      // Calculate year-over-year growth for interactions
+      let interactionGrowth = 0;
+      if (prevTotalInteractions > 0) {
+        interactionGrowth = ((totalInteractions - prevTotalInteractions) / prevTotalInteractions * 100).toFixed(1);
+      }
+
+      // ===== GROUPED REPORT: Find best/worst performing sites =====
+      let siteComparisons = null;
+      if (isGroupedReport) {
+        console.log('=== CALCULATING SITE COMPARISONS ===');
+        console.log('siteDataMap keys:', Object.keys(siteDataMap));
+        console.log('siteDataMap:', siteDataMap);
+        siteComparisons = calculateSiteComparisons(siteDataMap, aggregatedData);
+        console.log('siteComparisons result:', siteComparisons);
+      }
+      
+      // Sort and get top items (from all sites combined)
+      // For grouped reports, find which site contributed most to each item
+      const topSearched = Object.entries(aggregatedData.allSearchTerms)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => {
+          let topSite = null;
+          if (isGroupedReport && siteDataMap) {
+            let maxCount = 0;
+            Object.entries(siteDataMap).forEach(([siteId, siteInfo]) => {
+              const searchTerms = siteInfo.data?.allSearchTerms || {};
+              const siteCount = searchTerms[name] || 0;
+              if (siteCount > maxCount) {
+                maxCount = siteCount;
+                topSite = siteInfo.name;
+              }
+            });
+          }
+          return { name, count, siteName: topSite };
+        });
+
+      const topRouted = Object.entries(aggregatedData.allRouteDestinations)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => {
+          let topSite = null;
+          if (isGroupedReport && siteDataMap) {
+            let maxCount = 0;
+            Object.entries(siteDataMap).forEach(([siteId, siteInfo]) => {
+              const routeDests = siteInfo.data?.allRouteDestinations || {};
+              const siteCount = routeDests[name] || 0;
+              if (siteCount > maxCount) {
+                maxCount = siteCount;
+                topSite = siteInfo.name;
+              }
+            });
+          }
+          return { name, count, siteName: topSite };
+        });
+
+      // Sort languages - get more to allow proper merging
+      const topLanguages = Object.entries(aggregatedData.allLanguages)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([lang, count]) => ({ lang, count }));
+
+      // Calculate averages
+      const avgSessionTime = aggregatedData.statsCount > 0 
+        ? Math.round(aggregatedData.totalAvgTime / aggregatedData.statsCount) 
+        : 0;
+      const avgBounceRate = aggregatedData.statsCount > 0 
+        ? (aggregatedData.totalBounceRate / aggregatedData.statsCount).toFixed(1) 
+        : 0;
+
+      showLoading(false);
+
+      // Render with fetched data
+      const data = {
+        year: year,
+        isGroupedReport: isGroupedReport,
+        selectedSites: selectedSites,
+        totalVisits: totalVisits,
+        totalInteractions: totalInteractions,
+        monthlyVisits: aggregatedData.monthlyVisits,
+        monthlyInteractions: aggregatedData.monthlyInteractions,
+        dailyData: aggregatedData.allDailyData,
+        platforms: aggregatedData.totalPlatforms,
+        topSearched: topSearched,
+        topRouted: topRouted,
+        visitGrowth: parseFloat(visitGrowth),
+        interactionGrowth: parseFloat(interactionGrowth),
+        prevYearVisits: prevTotalVisits,
+        prevYearInteractions: prevTotalInteractions,
+        // New data
+        eventSummary: aggregatedData.eventSummary,
+        topLanguages: topLanguages,
+        hourlyData: aggregatedData.hourlyData,
+        avgSessionTime: avgSessionTime,
+        avgBounceRate: avgBounceRate,
+        // Additional new data
+        dayOfWeekData: aggregatedData.dayOfWeekData,
+        countries: Object.entries(aggregatedData.allCountries)
+          .sort((a, b) => b[1].visits - a[1].visits)
+          .slice(0, 10)
+          .map(([country, data]) => ({ country, visits: data.visits, code: data.code })),
+        // Grouped report comparisons
+        siteComparisons: siteComparisons,
+        siteDataMap: isGroupedReport ? siteDataMap : null
+      };
+
+      // Store for later use
+      localStorage.setItem('annualSummaryData', JSON.stringify(data));
+      
+      renderAnnualSummary(data);
+      
+      // Initialize site filter panel for grouped reports
+      if (isGroupedReport && siteDataMap) {
+        try {
+          fullSiteDataMap = siteDataMap;
+          allSelectedSites = selectedSites;
+          // Store year as string for consistency
+          currentYear = String(year);
+          // Use clear and add instead of reassignment to avoid const issues
+          activeSiteIds.clear();
+          selectedSites.forEach(site => {
+            activeSiteIds.add(String(site.id));
+          });
+          console.log('Initializing site filter panel with', activeSiteIds.size, 'sites');
+          initSiteFilterPanel();
+        } catch (error) {
+          console.error('Error initializing site filter panel:', error);
+        }
+      } else {
+        // Hide panel if not grouped
+        const panel = document.getElementById('siteFilterPanel');
+        if (panel) panel.style.display = 'none';
+      }
+    }
+
+    // Aggregate one data collector into another
+    function aggregateDataCollector(target, source) {
+      // Monthly data
+      source.monthlyVisits.forEach((v, i) => target.monthlyVisits[i] += v);
+      source.monthlyInteractions.forEach((v, i) => target.monthlyInteractions[i] += v);
+      
+      // Daily data
+      Object.entries(source.allDailyData).forEach(([date, dayData]) => {
+        if (!target.allDailyData[date]) {
+          target.allDailyData[date] = { visits: 0, interactions: 0 };
+        }
+        target.allDailyData[date].visits += dayData.visits || 0;
+        target.allDailyData[date].interactions += dayData.interactions || 0;
+      });
+      
+      // Platforms
+      target.totalPlatforms.android += source.totalPlatforms.android;
+      target.totalPlatforms.ios += source.totalPlatforms.ios;
+      target.totalPlatforms.web += source.totalPlatforms.web;
+      
+      // Search terms
+      Object.entries(source.allSearchTerms).forEach(([term, count]) => {
+        target.allSearchTerms[term] = (target.allSearchTerms[term] || 0) + count;
+      });
+      
+      // Route destinations
+      Object.entries(source.allRouteDestinations).forEach(([dest, count]) => {
+        target.allRouteDestinations[dest] = (target.allRouteDestinations[dest] || 0) + count;
+      });
+      
+      // Event summary
+      target.eventSummary.fromTo += source.eventSummary.fromTo;
+      target.eventSummary.searched += source.eventSummary.searched;
+      target.eventSummary.touched += source.eventSummary.touched;
+      target.eventSummary.initialized += source.eventSummary.initialized;
+      
+      // Languages
+      Object.entries(source.allLanguages).forEach(([lang, count]) => {
+        target.allLanguages[lang] = (target.allLanguages[lang] || 0) + count;
+      });
+      
+      // Hourly data
+      source.hourlyData.forEach((count, hour) => {
+        target.hourlyData[hour] += count;
+      });
+      
+      // User stats
+      target.totalAvgTime += source.totalAvgTime;
+      target.totalBounceRate += source.totalBounceRate;
+      target.statsCount += source.statsCount;
+      
+      // Day of week
+      source.dayOfWeekData.forEach((count, dayIdx) => {
+        target.dayOfWeekData[dayIdx] += count;
+      });
+      
+      // Countries
+      Object.entries(source.allCountries).forEach(([country, data]) => {
+        if (!target.allCountries[country]) {
+          target.allCountries[country] = { visits: 0, code: data.code };
+        }
+        target.allCountries[country].visits += data.visits;
+      });
+    }
+
+    // Calculate site-by-site comparisons for grouped reports
+    function calculateSiteComparisons(siteDataMap, aggregatedData) {
+      const sites = Object.entries(siteDataMap);
+      
+      // ===== Monthly Performance: Find best month across all sites =====
+      // Calculate each site's monthly average and find peak month
+      let peakMonthData = { month: 0, value: 0, siteName: '' };
+      sites.forEach(([siteId, siteInfo]) => {
+        const monthlyAvg = siteInfo.totalVisits / 12;
+        siteInfo.data.monthlyVisits.forEach((visits, monthIdx) => {
+          const ratio = monthlyAvg > 0 ? visits / monthlyAvg : 0;
+          if (visits > peakMonthData.value) {
+            peakMonthData = { month: monthIdx, value: visits, siteName: siteInfo.name };
+          }
+        });
+      });
+      
+      // ===== Find highest/lowest visit month/site =====
+      let highestVisitMonth = { month: 0, visits: 0, siteName: '' };
+      let lowestVisitMonth = { month: 0, visits: Infinity, siteName: '' };
+      let highestInteractionMonth = { month: 0, interactions: 0, siteName: '' };
+      let lowestInteractionMonth = { month: 0, interactions: Infinity, siteName: '' };
+      
+      sites.forEach(([siteId, siteInfo]) => {
+        siteInfo.data.monthlyVisits.forEach((visits, monthIdx) => {
+          if (visits > highestVisitMonth.visits) {
+            highestVisitMonth = { month: monthIdx, visits, siteName: siteInfo.name };
+          }
+          if (visits > 0 && visits < lowestVisitMonth.visits) {
+            lowestVisitMonth = { month: monthIdx, visits, siteName: siteInfo.name };
+          }
+        });
+        
+        siteInfo.data.monthlyInteractions.forEach((interactions, monthIdx) => {
+          if (interactions > highestInteractionMonth.interactions) {
+            highestInteractionMonth = { month: monthIdx, interactions, siteName: siteInfo.name };
+          }
+          if (interactions > 0 && interactions < lowestInteractionMonth.interactions) {
+            lowestInteractionMonth = { month: monthIdx, interactions, siteName: siteInfo.name };
+          }
+        });
+      });
+      
+      // ===== Find peak days per site =====
+      let peakVisitDay = { date: '', visits: 0, siteName: '' };
+      let peakInteractionDay = { date: '', interactions: 0, siteName: '' };
+      
+      sites.forEach(([siteId, siteInfo]) => {
+        Object.entries(siteInfo.data.allDailyData).forEach(([date, dayData]) => {
+          if (dayData.visits > peakVisitDay.visits) {
+            peakVisitDay = { date, visits: dayData.visits, siteName: siteInfo.name };
+          }
+          if (dayData.interactions > peakInteractionDay.interactions) {
+            peakInteractionDay = { date, interactions: dayData.interactions, siteName: siteInfo.name };
+          }
+        });
+      });
+      
+      // ===== Calculate averages across all sites =====
+      const avgMonthlyVisits = Math.round(aggregatedData.monthlyVisits.reduce((a, b) => a + b, 0) / 12);
+      const avgMonthlyInteractions = Math.round(aggregatedData.monthlyInteractions.reduce((a, b) => a + b, 0) / 12);
+      
+      return {
+        // Peak month based on highest absolute value
+        peakMonth: peakMonthData,
+        
+        // Monthly extremes with site names
+        highestVisitMonth,
+        lowestVisitMonth: lowestVisitMonth.visits === Infinity ? null : lowestVisitMonth,
+        highestInteractionMonth,
+        lowestInteractionMonth: lowestInteractionMonth.interactions === Infinity ? null : lowestInteractionMonth,
+        
+        // Peak days with site names
+        peakVisitDay,
+        peakInteractionDay,
+        
+        // Averages (from totals)
+        avgMonthlyVisits,
+        avgMonthlyInteractions
+      };
+    }
+
+    // Fetch a full year's data - OPTIMIZED for many sites
+    async function fetchYearData(siteId, year, monthsToFetch, dataCollector, progressStart, progressEnd, siteName = null) {
+      // Process 1 month at a time to reduce server load
+      const batchSize = 1;
+      const batches = monthsToFetch;
+      const progressRange = progressEnd - progressStart;
+      
+      // Get short site name for display
+      const displaySiteName = siteName ? getShortSiteName(siteName) : '';
+
+      for (let month = 0; month < monthsToFetch; month++) {
+        const siteLabel = displaySiteName ? `[${displaySiteName}] ` : '';
+        updateLoadingProgress(
+          progressStart + Math.round((month / monthsToFetch) * progressRange),
+          `${siteLabel}${getMonthName(month)} ${year} verileri alınıyor...`
+        );
+
+        try {
+          // Fetch single month data with retry
+          const result = await fetchAllMonthDataWithRetry(siteId, year, month);
+          
+          // Process single month result
+          // Visits data (users)
+          dataCollector.monthlyVisits[month] += result.visits;
+          // Interactions data
+          dataCollector.monthlyInteractions[month] += result.interactions;
+          
+          // Daily data - merge and accumulate
+          Object.entries(result.dailyData).forEach(([date, dayData]) => {
+            if (!dataCollector.allDailyData[date]) {
+              dataCollector.allDailyData[date] = { visits: 0, interactions: 0 };
+            }
+            dataCollector.allDailyData[date].visits += dayData.visits || 0;
+            dataCollector.allDailyData[date].interactions += dayData.interactions || 0;
+          });
+          
+          // Platform data
+          dataCollector.totalPlatforms.android += result.platforms.android;
+          dataCollector.totalPlatforms.ios += result.platforms.ios;
+          dataCollector.totalPlatforms.web += result.platforms.web;
+          
+          // Search data
+          Object.entries(result.searchTerms).forEach(([term, count]) => {
+            dataCollector.allSearchTerms[term] = (dataCollector.allSearchTerms[term] || 0) + count;
+          });
+          
+          // Route data
+          Object.entries(result.routeDestinations).forEach(([dest, count]) => {
+            dataCollector.allRouteDestinations[dest] = (dataCollector.allRouteDestinations[dest] || 0) + count;
+          });
+
+          // Event summary
+          dataCollector.eventSummary.fromTo += result.eventSummary.fromTo;
+          dataCollector.eventSummary.searched += result.eventSummary.searched;
+          dataCollector.eventSummary.touched += result.eventSummary.touched;
+          dataCollector.eventSummary.initialized += result.eventSummary.initialized;
+
+          // Languages
+          Object.entries(result.languages).forEach(([lang, count]) => {
+            dataCollector.allLanguages[lang] = (dataCollector.allLanguages[lang] || 0) + count;
+          });
+
+          // Hourly data
+          result.hourlyData.forEach((count, hour) => {
+            dataCollector.hourlyData[hour] += count;
+          });
+
+          // User stats
+          dataCollector.totalAvgTime += result.userStats.avgTimeOnPage;
+          dataCollector.totalBounceRate += result.userStats.bounceRate;
+          dataCollector.statsCount++;
+
+          // Day of week data
+          result.dayOfWeekData.forEach((count, dayIdx) => {
+            dataCollector.dayOfWeekData[dayIdx] += count;
+          });
+
+          // Country data
+          Object.entries(result.countryData).forEach(([country, data]) => {
+            if (!dataCollector.allCountries[country]) {
+              dataCollector.allCountries[country] = { visits: 0, code: data.code };
+            }
+            dataCollector.allCountries[country].visits += data.visits;
+          });
+
+        } catch (error) {
+          console.error(`Error processing month ${month + 1} for year ${year}:`, error);
+        }
+
+        // Longer delay between months to prevent server overload
+        if (month < monthsToFetch - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+    }
+
+    // Fetch with retry mechanism
+    async function fetchAllMonthDataWithRetry(siteId, year, month, maxRetries = 2) {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await fetchAllMonthData(siteId, year, month);
+          return result;
+        } catch (error) {
+          console.warn(`Attempt ${attempt + 1} failed for ${year}-${month + 1}, retrying...`);
+          if (attempt < maxRetries) {
+            // Wait longer before retry (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          } else {
+            console.error(`All retries failed for ${year}-${month + 1}`);
+            // Return empty data on final failure
+            return {
+              visits: 0,
+              interactions: 0,
+              dailyData: {},
+              platforms: { android: 0, ios: 0, web: 0 },
+              searchTerms: {},
+              routeDestinations: {},
+              eventSummary: { fromTo: 0, searched: 0, touched: 0, initialized: 0 },
+              languages: {},
+              hourlyData: new Array(24).fill(0),
+              userStats: { avgTimeOnPage: 0, bounceRate: 0 },
+              dayOfWeekData: new Array(7).fill(0),
+              countryData: {}
+            };
+          }
+        }
+      }
+    }
+
+    // Fetch all data types for a single month - SPLIT INTO GROUPS to reduce parallel requests
+    async function fetchAllMonthData(siteId, year, month) {
+      // Group 1: Essential data (5 requests)
+      const [monthData, platformData, userStats, hourlyData, dayOfWeekData] = await Promise.allSettled([
+        fetchMonthData(siteId, year, month),
+        fetchMonthPlatformData(siteId, year, month),
+        fetchMonthUserStats(siteId, year, month),
+        fetchMonthHourlyData(siteId, year, month),
+        fetchMonthDayOfWeek(siteId, year, month)
+      ]);
+
+      // Small delay between groups
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Group 2: Secondary data (5 requests)
+      const [searchData, routeData, eventSummary, langData, countryData] = await Promise.allSettled([
+        fetchMonthSearchData(siteId, year, month),
+        fetchMonthRouteData(siteId, year, month),
+        fetchMonthEventSummary(siteId, year, month),
+        fetchMonthLanguageData(siteId, year, month),
+        fetchMonthCountryData(siteId, year, month)
+      ]);
+
+      return {
+        visits: monthData.status === 'fulfilled' ? monthData.value.visits : 0,
+        interactions: monthData.status === 'fulfilled' ? monthData.value.interactions : 0,
+        dailyData: monthData.status === 'fulfilled' ? monthData.value.dailyData : {},
+        platforms: platformData.status === 'fulfilled' ? platformData.value : { android: 0, ios: 0, web: 0 },
+        searchTerms: searchData.status === 'fulfilled' ? searchData.value : {},
+        routeDestinations: routeData.status === 'fulfilled' ? routeData.value : {},
+        eventSummary: eventSummary.status === 'fulfilled' ? eventSummary.value : { fromTo: 0, searched: 0, touched: 0, initialized: 0 },
+        languages: langData.status === 'fulfilled' ? langData.value : {},
+        hourlyData: hourlyData.status === 'fulfilled' ? hourlyData.value : new Array(24).fill(0),
+        userStats: userStats.status === 'fulfilled' ? userStats.value : { avgTimeOnPage: 0, bounceRate: 0 },
+        dayOfWeekData: dayOfWeekData.status === 'fulfilled' ? dayOfWeekData.value : new Array(7).fill(0),
+        countryData: countryData.status === 'fulfilled' ? countryData.value : {}
+      };
+    }
+
+    // Update loading progress
+    function updateLoadingProgress(percent, message) {
+      const progressBar = document.getElementById('loadingProgress');
+      const progressText = document.getElementById('loadingText');
+      
+      if (progressBar) {
+        progressBar.style.width = percent + '%';
+      }
+      if (progressText) {
+        progressText.textContent = message;
+      }
+    }
+
+    // Show empty state when no site selected
+    function showNoSiteSelected(year) {
+      const emptyData = {
+        year: year,
+        totalVisits: 0,
+        totalInteractions: 0,
+        monthlyVisits: new Array(12).fill(0),
+        monthlyInteractions: new Array(12).fill(0),
+        platforms: { android: 0, ios: 0, web: 0 },
+        topSearched: [],
+        topRouted: [],
+        visitGrowth: 0,
+        interactionGrowth: 0,
+        prevYearVisits: 0,
+        prevYearInteractions: 0
+      };
+      
+      // Show warning message - site not selected
+      
+      renderAnnualSummary(emptyData);
+    }
+
+    // Render annual summary
+    function renderAnnualSummary(data) {
+      // Use monthlyVisits for user counts
+      const monthlyVisits = data.monthlyVisits || data.monthlyData || new Array(12).fill(0);
+      const monthlyInteractions = data.monthlyInteractions || monthlyVisits.map(v => v * 2);
+      const isGrouped = data.isGroupedReport && data.siteComparisons;
+
+      // Highlights
+      document.getElementById('totalVisits').textContent = formatNumber(data.totalVisits);
+      document.getElementById('totalInteractions').textContent = formatNumber(Math.round(data.totalInteractions));
+      
+      // Find peak month - for grouped report use aggregated data
+      const maxMonthIndex = monthlyVisits.indexOf(Math.max(...monthlyVisits));
+      document.getElementById('peakMonth').textContent = getMonthName(maxMonthIndex);
+      document.getElementById('peakMonthVisits').textContent = formatNumber(monthlyVisits[maxMonthIndex]) + ' kullanıcı';
+      
+      // Daily average
+      const dailyAvg = Math.round(data.totalVisits / 365);
+      document.getElementById('dailyAverage').textContent = formatNumber(dailyAvg);
+
+      // Visit growth card
+      const visitGrowthCard = document.getElementById('visitGrowthCard');
+      const visitGrowthValue = document.getElementById('visitGrowth');
+      const visitGrowthDetail = document.getElementById('visitGrowthDetail');
+      const visitGrowthRange = document.getElementById('visitGrowthRange');
+      
+      if (data.visitGrowth >= 0) {
+        visitGrowthCard.classList.add('positive');
+        visitGrowthCard.classList.remove('negative');
+        visitGrowthValue.textContent = `+${data.visitGrowth}%`;
+        visitGrowthDetail.textContent = 'artış';
+      } else {
+        visitGrowthCard.classList.add('negative');
+        visitGrowthCard.classList.remove('positive');
+        visitGrowthValue.textContent = `${data.visitGrowth}%`;
+        visitGrowthDetail.textContent = 'azalış';
+      }
+      visitGrowthRange.textContent = `${formatNumber(data.prevYearVisits)} → ${formatNumber(data.totalVisits)} ziyaret`;
+
+      // Interaction growth card
+      const interactionGrowthCard = document.getElementById('interactionGrowthCard');
+      const interactionGrowthValue = document.getElementById('interactionGrowth');
+      const interactionGrowthDetail = document.getElementById('interactionGrowthDetail');
+      const interactionGrowthRange = document.getElementById('interactionGrowthRange');
+      
+      if (data.interactionGrowth >= 0) {
+        interactionGrowthCard.classList.add('positive');
+        interactionGrowthCard.classList.remove('negative');
+        interactionGrowthValue.textContent = `+${data.interactionGrowth}%`;
+        interactionGrowthDetail.textContent = 'artış';
+      } else {
+        interactionGrowthCard.classList.add('negative');
+        interactionGrowthCard.classList.remove('positive');
+        interactionGrowthValue.textContent = `${data.interactionGrowth}%`;
+        interactionGrowthDetail.textContent = 'azalış';
+      }
+      interactionGrowthRange.textContent = `${formatNumber(data.prevYearInteractions)} → ${formatNumber(Math.round(data.totalInteractions))} etkileşim`;
+
+      // Monthly trend chart (with both visits and interactions)
+      renderMonthlyTrendChart(monthlyVisits, monthlyInteractions, data.year);
+
+      // DEBUG: Check grouped report data
+      console.log('=== GROUPED REPORT DEBUG ===');
+      console.log('isGroupedReport:', data.isGroupedReport);
+      console.log('siteComparisons:', data.siteComparisons);
+      console.log('isGrouped variable:', isGrouped);
+      
+      // Trend summary - Kullanıcı (based on visits)
+      if (isGrouped && data.siteComparisons) {
+        console.log('Using GROUPED report mode');
+        // GROUPED REPORT: Show site-specific highest/lowest with site names
+        const comp = data.siteComparisons;
+        
+        // Lowest visit - show site name
+        const lowestMonthEl = document.getElementById('lowestMonth');
+        const lowestValueEl = document.getElementById('lowestValue');
+        if (comp.lowestVisitMonth) {
+          lowestMonthEl.innerHTML = `${getMonthName(comp.lowestVisitMonth.month)}<br><small class="site-label">${getShortSiteName(comp.lowestVisitMonth.siteName)}</small>`;
+          lowestValueEl.textContent = formatNumber(comp.lowestVisitMonth.visits);
+        }
+        
+        // Highest visit - show site name
+        const highestMonthEl = document.getElementById('highestMonth');
+        const highestValueEl = document.getElementById('highestValue');
+        highestMonthEl.innerHTML = `${getMonthName(comp.highestVisitMonth.month)}<br><small class="site-label">${getShortSiteName(comp.highestVisitMonth.siteName)}</small>`;
+        highestValueEl.textContent = formatNumber(comp.highestVisitMonth.visits);
+        
+        // Average from all sites combined
+        document.getElementById('monthlyAverage').textContent = formatNumber(comp.avgMonthlyVisits);
+        
+        // Lowest interaction - show site name
+        const lowestInterMonthEl = document.getElementById('lowestInteractionMonth');
+        const lowestInterValueEl = document.getElementById('lowestInteractionValue');
+        if (comp.lowestInteractionMonth) {
+          lowestInterMonthEl.innerHTML = `${getMonthName(comp.lowestInteractionMonth.month)}<br><small class="site-label">${getShortSiteName(comp.lowestInteractionMonth.siteName)}</small>`;
+          lowestInterValueEl.textContent = formatNumber(comp.lowestInteractionMonth.interactions);
+        }
+        
+        // Highest interaction - show site name
+        const highestInterMonthEl = document.getElementById('highestInteractionMonth');
+        const highestInterValueEl = document.getElementById('highestInteractionValue');
+        highestInterMonthEl.innerHTML = `${getMonthName(comp.highestInteractionMonth.month)}<br><small class="site-label">${getShortSiteName(comp.highestInteractionMonth.siteName)}</small>`;
+        highestInterValueEl.textContent = formatNumber(comp.highestInteractionMonth.interactions);
+        
+        // Average interactions from all sites combined
+        document.getElementById('monthlyInteractionAverage').textContent = formatNumber(comp.avgMonthlyInteractions);
+      } else {
+        console.log('Using SINGLE site mode');
+        // SINGLE SITE: Use aggregated monthly data
+        const nonZeroVisits = monthlyVisits.filter(v => v > 0);
+        const minVisit = nonZeroVisits.length > 0 ? Math.min(...nonZeroVisits) : 0;
+        const minMonth = monthlyVisits.indexOf(minVisit);
+        
+        document.getElementById('lowestMonth').textContent = getMonthName(minMonth >= 0 ? minMonth : 0);
+        document.getElementById('lowestValue').textContent = formatNumber(minVisit);
+        document.getElementById('highestMonth').textContent = getMonthName(maxMonthIndex >= 0 ? maxMonthIndex : 0);
+        document.getElementById('highestValue').textContent = formatNumber(monthlyVisits[maxMonthIndex] || 0);
+        
+        const monthsWithData = nonZeroVisits.length || 1;
+        document.getElementById('monthlyAverage').textContent = formatNumber(Math.round(data.totalVisits / monthsWithData));
+
+        // Trend summary - Etkileşim (based on interactions)
+        const nonZeroInteractions = monthlyInteractions.filter(v => v > 0);
+        const minInteraction = nonZeroInteractions.length > 0 ? Math.min(...nonZeroInteractions) : 0;
+        const minInteractionMonth = monthlyInteractions.indexOf(minInteraction);
+        const maxInteraction = nonZeroInteractions.length > 0 ? Math.max(...nonZeroInteractions) : 0;
+        const maxInteractionMonth = monthlyInteractions.indexOf(maxInteraction);
+        
+        document.getElementById('lowestInteractionMonth').textContent = getMonthName(minInteractionMonth >= 0 ? minInteractionMonth : 0);
+        document.getElementById('lowestInteractionValue').textContent = formatNumber(minInteraction);
+        document.getElementById('highestInteractionMonth').textContent = getMonthName(maxInteractionMonth >= 0 ? maxInteractionMonth : 0);
+        document.getElementById('highestInteractionValue').textContent = formatNumber(maxInteraction);
+        
+        const monthsWithInteractionData = nonZeroInteractions.length || 1;
+        document.getElementById('monthlyInteractionAverage').textContent = formatNumber(Math.round(data.totalInteractions / monthsWithInteractionData));
+      }
+
+      // Top performers
+      renderTopList('topSearchedList', data.topSearched || []);
+      renderTopList('topRoutedList', data.topRouted || []);
+
+      // Platform bars
+      renderPlatformBars(data.platforms);
+
+      // New detail sections
+      renderEventTypeChart(data.eventSummary || { fromTo: 0, searched: 0, touched: 0, initialized: 0 });
+      renderLanguageList(data.topLanguages || []);
+      renderHourlyChart(data.hourlyData || new Array(24).fill(0));
+      renderMonthlyGrowth(data.monthlyVisits || new Array(12).fill(0));
+      renderAdditionalStats(data);
+      
+      // Additional new charts
+      renderDayOfWeekChart(data.dayOfWeekData || new Array(7).fill(0));
+      renderCountryLanguageMap(data.topLanguages || []);
+      
+      // Trend page additional components
+      renderMonthlyStatsTable(data.monthlyVisits || [], data.monthlyInteractions || []);
+      
+      // Site performance table (only for grouped reports)
+      if (data.isGroupedReport && data.siteDataMap) {
+        renderSitePerformanceTable(data.siteDataMap);
+      } else {
+        const sitePage = document.getElementById('sitePerformancePage');
+        const siteSection = document.getElementById('sitePerformanceSection');
+        if (sitePage) sitePage.style.display = 'none';
+        if (siteSection) siteSection.style.display = 'none';
+      }
+      
+      renderSeasonalAnalysis(data.monthlyVisits || [], data.monthlyInteractions || []);
+      renderPeakDays(data.dailyData || {}, data.isGroupedReport ? data.siteComparisons : null);
+    }
+
+    // Get short site name (e.g., "TK / IST" -> "IST")
+    function getShortSiteName(fullName) {
+      if (!fullName) return '';
+      const parts = fullName.split('/');
+      return parts.length > 1 ? parts[parts.length - 1].trim() : fullName;
+    }
+
+    // Render monthly trend chart with bars (Kullanıcı) and line (Etkileşim)
+    let trendChart = null;
+    
+    function renderMonthlyTrendChart(monthlyVisits, monthlyInteractions, year) {
+      const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
+      const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+      const labels = months.map((m, i) => `${year}.${String(i + 1).padStart(2, '0')}`);
+
+      // Destroy previous chart if exists
+      if (trendChart) {
+        trendChart.destroy();
+      }
+
+      trendChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              type: 'line',
+              label: 'Etkileşim*',
+              data: monthlyInteractions,
+              borderColor: '#ef4444',
+              backgroundColor: 'transparent',
+              borderWidth: 3,
+              tension: 0.4,
+              pointBackgroundColor: '#ef4444',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              order: 1
+            },
+            {
+              type: 'bar',
+              label: 'Kullanıcı',
+              data: monthlyVisits,
+              backgroundColor: '#f4a460',
+              borderColor: '#f4a460',
+              borderWidth: 0,
+              borderRadius: 4,
+              order: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 20,
+                font: {
+                  size: 12,
+                  weight: 600
+                },
+                color: '#475569'
+              }
+            },
+            datalabels: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + formatNumber(context.raw);
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                font: {
+                  weight: 500,
+                  size: 10
+                },
+                color: '#64748b'
+              }
+            },
+            y: {
+              beginAtZero: true,
+              position: 'left',
+              grid: {
+                color: 'rgba(0, 0, 0, 0.06)'
+              },
+              ticks: {
+                callback: function(value) {
+                  return formatNumber(value);
+                },
+                color: '#64748b'
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          }
+        }
+      });
+    }
+
+    // Render top list
+    function renderTopList(containerId, items) {
+      const container = document.getElementById(containerId);
+      if (!items || items.length === 0) {
+        container.innerHTML = `
+          <div class="performer-item" style="opacity: 0.5; justify-content: center;">
+            <span class="performer-name">Veri bulunamadı</span>
+          </div>
+        `;
+        return;
+      }
+      container.innerHTML = items.slice(0, 5).map((item, index) => `
+        <div class="performer-item">
+          <span class="performer-rank rank-${index + 1}">${index + 1}</span>
+          <div class="performer-name-wrapper">
+            <span class="performer-name">${item.name}</span>
+            ${item.siteName ? `<small class="performer-site">${getShortSiteName(item.siteName)}</small>` : ''}
+          </div>
+          <span class="performer-count">${formatNumber(item.count)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Render platform bars
+    function renderPlatformBars(platforms) {
+      const android = platforms.android || 0;
+      const ios = platforms.ios || 0;
+      const web = platforms.web || 0;
+      const total = android + ios + web;
+      
+      const androidPercent = total > 0 ? (android / total) * 100 : 0;
+      const iosPercent = total > 0 ? (ios / total) * 100 : 0;
+      const webPercent = total > 0 ? (web / total) * 100 : 0;
+
+      // Update bars
+      const androidBar = document.getElementById('androidBar');
+      const iosBar = document.getElementById('iosBar');
+      const webBar = document.getElementById('webBar');
+
+      androidBar.querySelector('.platform-fill').style.width = androidPercent + '%';
+      androidBar.querySelector('.platform-value').textContent = formatNumber(android);
+
+      iosBar.querySelector('.platform-fill').style.width = iosPercent + '%';
+      iosBar.querySelector('.platform-value').textContent = formatNumber(ios);
+
+      webBar.querySelector('.platform-fill').style.width = webPercent + '%';
+      webBar.querySelector('.platform-value').textContent = formatNumber(web);
+    }
+
+    // =====================================================
+    // New Render Functions for Detail Page
+    // =====================================================
+
+    // Render Event Type Distribution Chart
+    let eventTypeChart = null;
+
+    function renderEventTypeChart(eventSummary) {
+      const canvas = document.getElementById('eventTypeChart');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+
+      // Calculate totals
+      const data = [
+        eventSummary.fromTo || 0,
+        eventSummary.searched || 0,
+        eventSummary.touched || 0,
+        eventSummary.initialized || 0
+      ];
+      const labels = ['Rota Çizme', 'Arama', 'Tıklama', 'Harita Çağırma'];
+      const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
+
+      if (eventTypeChart) {
+        eventTypeChart.destroy();
+      }
+
+      eventTypeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: colors,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          cutout: '65%'
+        }
+      });
+
+      // Render legend
+      const legendContainer = document.getElementById('eventTypeLegend');
+      if (legendContainer) {
+        const total = data.reduce((a, b) => a + b, 0);
+        legendContainer.innerHTML = labels.map((label, i) => {
+          const percent = total > 0 ? ((data[i] / total) * 100).toFixed(1) : 0;
+          return `
+            <div class="legend-item">
+              <span class="legend-color" style="background: ${colors[i]}"></span>
+              <span>${label}: ${formatNumber(data[i])} (%${percent})</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // Render Language Distribution List
+    function renderLanguageList(topLanguages) {
+      const container = document.getElementById('languageList');
+      if (!container) return;
+
+      if (!topLanguages || topLanguages.length === 0) {
+        container.innerHTML = '<div class="language-item"><span class="language-name">Veri bulunamadı</span></div>';
+        return;
+      }
+
+      // Merge similar languages (e.g., all English variants)
+      const mergedLanguages = mergeLanguages(topLanguages);
+
+      // Take top 10 after merging (more compact UI allows more items)
+      const displayLanguages = mergedLanguages.slice(0, 10);
+
+      container.innerHTML = displayLanguages.map(item => {
+        return `
+          <div class="language-item">
+            <span class="language-name">${item.name}</span>
+            <span class="language-count">${formatNumber(item.count)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Merge language variants into single entries
+    function mergeLanguages(languages) {
+      const langGroups = {
+        'Türkçe': { flag: '🇹🇷', count: 0, keywords: ['tr', 'turkish', 'türk'] },
+        'İngilizce': { flag: '🇬🇧', count: 0, keywords: ['en', 'english', 'ing'] },
+        'Arapça': { flag: '🇸🇦', count: 0, keywords: ['ar', 'arabic', 'arap'] },
+        'Almanca': { flag: '🇩🇪', count: 0, keywords: ['de', 'german', 'deutsch', 'alman'] },
+        'Fransızca': { flag: '🇫🇷', count: 0, keywords: ['fr', 'french', 'français', 'frans'] },
+        'İspanyolca': { flag: '🇪🇸', count: 0, keywords: ['es', 'spanish', 'español', 'ispan'] },
+        'Rusça': { flag: '🇷🇺', count: 0, keywords: ['ru', 'russian', 'rus'] },
+        'Çince': { flag: '🇨🇳', count: 0, keywords: ['zh', 'chinese', 'çin', 'mandarin'] },
+        'Japonca': { flag: '🇯🇵', count: 0, keywords: ['ja', 'japanese', 'japon'] },
+        'Korece': { flag: '🇰🇷', count: 0, keywords: ['ko', 'korean', 'kore'] },
+        'İtalyanca': { flag: '🇮🇹', count: 0, keywords: ['it', 'italian', 'ital'] },
+        'Portekizce': { flag: '🇵🇹', count: 0, keywords: ['pt', 'portuguese', 'portek', 'brasil'] },
+        'Hollandaca': { flag: '🇳🇱', count: 0, keywords: ['nl', 'dutch', 'holland', 'neder'] },
+        'Farsça': { flag: '🇮🇷', count: 0, keywords: ['fa', 'persian', 'farsi', 'fars'] },
+        'Lehçe': { flag: '🇵🇱', count: 0, keywords: ['pl', 'polish', 'leh', 'polska'] },
+        'Ukraynaca': { flag: '🇺🇦', count: 0, keywords: ['uk', 'ukrainian', 'ukrain'] },
+        'Hintçe': { flag: '🇮🇳', count: 0, keywords: ['hi', 'hindi', 'hint'] },
+        'Romence': { flag: '🇷🇴', count: 0, keywords: ['ro', 'romanian', 'roman', 'română'] },
+        'Yunanca': { flag: '🇬🇷', count: 0, keywords: ['el', 'greek', 'yunan', 'ελληνικά'] },
+        'Hırvatça': { flag: '🇭🇷', count: 0, keywords: ['hr', 'croatian', 'hırvat', 'hrvatski'] },
+        'Çekçe': { flag: '🇨🇿', count: 0, keywords: ['cs', 'czech', 'çek', 'čeština'] },
+        'Macarca': { flag: '🇭🇺', count: 0, keywords: ['hu', 'hungarian', 'macar', 'magyar'] },
+        'Bulgarca': { flag: '🇧🇬', count: 0, keywords: ['bg', 'bulgarian', 'bulgar'] },
+        'Sırpça': { flag: '🇷🇸', count: 0, keywords: ['sr', 'serbian', 'sırp', 'srpski'] },
+        'Slovakça': { flag: '🇸🇰', count: 0, keywords: ['sk', 'slovak', 'slovak'] },
+        'Slovence': { flag: '🇸🇮', count: 0, keywords: ['sl', 'slovenian', 'sloven'] },
+        'Fince': { flag: '🇫🇮', count: 0, keywords: ['fi', 'finnish', 'fin', 'suomi'] },
+        'İsveççe': { flag: '🇸🇪', count: 0, keywords: ['sv', 'swedish', 'isveç', 'svenska'] },
+        'Norveççe': { flag: '🇳🇴', count: 0, keywords: ['no', 'norwegian', 'norveç', 'norsk'] },
+        'Danca': { flag: '🇩🇰', count: 0, keywords: ['da', 'danish', 'dan', 'dansk'] },
+        'İbranice': { flag: '🇮🇱', count: 0, keywords: ['he', 'hebrew', 'ibran', 'עברית'] },
+        'Tayca': { flag: '🇹🇭', count: 0, keywords: ['th', 'thai', 'tay', 'ไทย'] },
+        'Vietnamca': { flag: '🇻🇳', count: 0, keywords: ['vi', 'vietnam', 'viet'] },
+        'Endonezce': { flag: '🇮🇩', count: 0, keywords: ['id', 'indonesian', 'indo', 'bahasa'] },
+        'Malayca': { flag: '🇲🇾', count: 0, keywords: ['ms', 'malay', 'melayu'] },
+        'Filipince': { flag: '🇵🇭', count: 0, keywords: ['tl', 'filipino', 'tagalog', 'filipin'] },
+        'Bengalce': { flag: '🇧🇩', count: 0, keywords: ['bn', 'bengali', 'bangla', 'bengal'] },
+        'Tamilce': { flag: '🇮🇳', count: 0, keywords: ['ta', 'tamil'] },
+        'Urduca': { flag: '🇵🇰', count: 0, keywords: ['ur', 'urdu'] },
+        'Svahili': { flag: '🇰🇪', count: 0, keywords: ['sw', 'swahili'] },
+        'Katalanca': { flag: '🇪🇸', count: 0, keywords: ['ca', 'catalan', 'català'] },
+        'Baskça': { flag: '🇪🇸', count: 0, keywords: ['eu', 'basque', 'euskara'] },
+        'Galiçyaca': { flag: '🇪🇸', count: 0, keywords: ['gl', 'galician', 'galego'] },
+        'Litvanca': { flag: '🇱🇹', count: 0, keywords: ['lt', 'lithuanian', 'litvan', 'lietuvių'] },
+        'Letonca': { flag: '🇱🇻', count: 0, keywords: ['lv', 'latvian', 'leton', 'latviešu'] },
+        'Estonca': { flag: '🇪🇪', count: 0, keywords: ['et', 'estonian', 'eston', 'eesti'] },
+        'Arnavutça': { flag: '🇦🇱', count: 0, keywords: ['sq', 'albanian', 'arnavut', 'shqip'] },
+        'Makedonca': { flag: '🇲🇰', count: 0, keywords: ['mk', 'macedonian', 'makedon'] },
+        'Boşnakça': { flag: '🇧🇦', count: 0, keywords: ['bs', 'bosnian', 'bosna', 'bosanski'] },
+        'İzlandaca': { flag: '🇮🇸', count: 0, keywords: ['is', 'icelandic', 'izlanda', 'íslenska'] },
+        'Gürcüce': { flag: '🇬🇪', count: 0, keywords: ['ka', 'georgian', 'gürcü', 'ქართული'] },
+        'Ermenice': { flag: '🇦🇲', count: 0, keywords: ['hy', 'armenian', 'ermeni', 'հայերdelays'] },
+        'Azerice': { flag: '🇦🇿', count: 0, keywords: ['az', 'azerbaijani', 'azeri', 'azərbaycan'] },
+        'Kazakça': { flag: '🇰🇿', count: 0, keywords: ['kk', 'kazakh', 'kazak', 'қазақ'] },
+        'Özbekçe': { flag: '🇺🇿', count: 0, keywords: ['uz', 'uzbek', 'özbek', 'oʻzbek'] },
+        'Moğolca': { flag: '🇲🇳', count: 0, keywords: ['mn', 'mongolian', 'moğol', 'монгол'] }
+      };
+
+      const unmatchedLanguages = [];
+
+      languages.forEach(item => {
+        const langStr = item.lang.toLowerCase();
+        let matched = false;
+
+        for (const [name, data] of Object.entries(langGroups)) {
+          // Check if any keyword matches the language string
+          if (data.keywords.some(kw => langStr.includes(kw))) {
+            data.count += item.count;
+            matched = true;
+            break;
+          }
+        }
+
+        // Eşleşmeyen dilleri kendi adlarıyla ekle
+        if (!matched && item.count > 0) {
+          unmatchedLanguages.push({
+            name: item.lang,
+            flag: '🌐',
+            count: item.count
+          });
+        }
+      });
+
+      // Convert to array and sort by count
+      const result = Object.entries(langGroups)
+        .filter(([_, data]) => data.count > 0)
+        .map(([name, data]) => ({
+          name,
+          flag: data.flag,
+          count: data.count
+        }));
+
+      // Eşleşmeyen dilleri de ekle
+      result.push(...unmatchedLanguages);
+      
+      // Tümünü sırala
+      result.sort((a, b) => b.count - a.count);
+
+      return result;
+    }
+
+    // Render Hourly Activity Chart
+    let hourlyChart = null;
+
+    function renderHourlyChart(hourlyData) {
+      const canvas = document.getElementById('hourlyChart');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      const labels = Array.from({length: 24}, (_, i) => `${i}:00`);
+
+      if (hourlyChart) {
+        hourlyChart.destroy();
+      }
+
+      // Create gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.9)');
+      gradient.addColorStop(1, 'rgba(99, 102, 241, 0.4)');
+
+      hourlyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: hourlyData,
+            backgroundColor: gradient,
+            borderRadius: 3,
+            borderSkipped: false,
+            categoryPercentage: 0.9,
+            barPercentage: 0.95
+          }]
+        },
+        plugins: [ChartDataLabels],
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'top',
+              color: '#475569',
+              font: { size: 7, weight: '600' },
+              formatter: (value) => value > 0 ? formatNumber(value) : '',
+              offset: -2
+            }
+          },
+          layout: {
+            padding: { top: 20 }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { 
+                color: '#94a3b8',
+                font: { size: 8 },
+                maxRotation: 0,
+                callback: function(val, index) {
+                  return index % 4 === 0 ? this.getLabelForValue(val) : '';
+                }
+              }
+            },
+            y: {
+              display: false,
+              beginAtZero: true,
+              grace: '15%'
+            }
+          }
+        }
+      });
+    }
+
+    // Render Monthly Growth Bars - Compare to Yearly Average
+    function renderMonthlyGrowth(monthlyVisits) {
+      const container = document.getElementById('growthBars');
+      if (!container) return;
+
+      const monthNames = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+      
+      // Calculate yearly average (only months with data)
+      const monthsWithData = monthlyVisits.filter(v => v > 0);
+      const yearlyAverage = monthsWithData.length > 0 
+        ? monthsWithData.reduce((a, b) => a + b, 0) / monthsWithData.length 
+        : 0;
+
+      // Update average info
+      const avgInfo = document.getElementById('avgInfo');
+      if (avgInfo) {
+        avgInfo.textContent = `(Aylık Ort: ${formatNumber(Math.round(yearlyAverage))} ziyaret)`;
+      }
+
+      // Calculate deviation from average for each month
+      const deviationRates = monthlyVisits.map(visits => {
+        if (visits === 0 || yearlyAverage === 0) return 0;
+        return ((visits - yearlyAverage) / yearlyAverage * 100);
+      });
+
+      // Find max absolute deviation for scaling
+      const maxDeviation = Math.max(...deviationRates.map(Math.abs), 1);
+      const maxBarHeight = 70; // Max height for one direction
+
+      container.innerHTML = monthlyVisits.map((visits, i) => {
+        const deviation = deviationRates[i];
+        const isAboveAvg = deviation >= 0;
+        const displayDeviation = deviation.toFixed(0);
+        const barHeight = Math.max((Math.abs(deviation) / maxDeviation) * maxBarHeight, 2);
+
+        return `
+          <div class="growth-bar-item">
+            <span class="growth-value ${isAboveAvg ? 'positive' : 'negative'}">${isAboveAvg ? '+' : ''}${displayDeviation}%</span>
+            <div class="growth-bar-container">
+              <div class="growth-upper">
+                ${isAboveAvg ? `<div class="growth-fill positive" style="height: ${barHeight}px;"></div>` : ''}
+              </div>
+              <div class="growth-baseline"></div>
+              <div class="growth-lower">
+                ${!isAboveAvg ? `<div class="growth-fill negative" style="height: ${barHeight}px;"></div>` : ''}
+              </div>
+            </div>
+            <span class="growth-month">${monthNames[i]}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Additional Stats
+    function renderAdditionalStats(data) {
+      // Average session time
+      const avgTimeEl = document.getElementById('avgSessionTime');
+      if (avgTimeEl) {
+        const avgTime = data.avgSessionTime || 0;
+        const minutes = Math.floor(avgTime / 60);
+        const seconds = avgTime % 60;
+        avgTimeEl.textContent = minutes > 0 ? `${minutes}dk ${seconds}sn` : `${seconds}sn`;
+      }
+
+      // Engagement rate (inverse of bounce rate)
+      const engagementEl = document.getElementById('engagementRate');
+      if (engagementEl) {
+        const bounceRate = parseFloat(data.avgBounceRate) || 0;
+        const engagement = Math.max(0, 100 - bounceRate).toFixed(1);
+        engagementEl.textContent = `%${engagement}`;
+      }
+
+      // Events per user
+      const eventsPerUserEl = document.getElementById('eventsPerUser');
+      if (eventsPerUserEl) {
+        const totalVisits = data.totalVisits || 1;
+        const totalInteractions = data.totalInteractions || 0;
+        const eventsPerUser = (totalInteractions / totalVisits).toFixed(1);
+        eventsPerUserEl.textContent = eventsPerUser;
+      }
+    }
+
+    // =====================================================
+    // New Charts: Day of Week, Country, Visitor Frequency
+    // =====================================================
+
+    // Day of Week Chart - Vertical bars like hourly
+    let dayOfWeekChart = null;
+
+    function renderDayOfWeekChart(dayData) {
+      const canvas = document.getElementById('dayOfWeekChart');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+
+      if (dayOfWeekChart) {
+        dayOfWeekChart.destroy();
+      }
+
+      // Find max for color intensity
+      const maxVisits = Math.max(...dayData);
+
+      // Create gradient colors - weekdays vs weekend
+      const colors = dayData.map((visits, idx) => {
+        const isWeekend = idx >= 5; // Saturday, Sunday
+        if (isWeekend) {
+          return 'rgba(139, 92, 246, 0.85)'; // Purple for weekend
+        }
+        return 'rgba(99, 102, 241, 0.85)'; // Indigo for weekdays
+      });
+
+      dayOfWeekChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: dayNames,
+          datasets: [{
+            data: dayData,
+            backgroundColor: colors,
+            borderRadius: 6,
+            borderSkipped: false,
+            categoryPercentage: 0.8,
+            barPercentage: 0.85
+          }]
+        },
+        plugins: [ChartDataLabels],
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'top',
+              color: '#475569',
+              font: { size: 10, weight: '700' },
+              formatter: (value) => formatNumber(value),
+              offset: 2
+            }
+          },
+          layout: {
+            padding: { top: 25 }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { 
+                color: '#475569',
+                font: { size: 10, weight: '500' }
+              }
+            },
+            y: {
+              display: false,
+              beginAtZero: true,
+              grace: '15%'
+            }
+          }
+        }
+      });
+    }
+
+    // Language to Country Code Mapping
+    const languageCountryMap = {
+      'Türkçe': 'TR',
+      'İngilizce': 'GB',
+      'Arapça': 'SA',
+      'Almanca': 'DE',
+      'Fransızca': 'FR',
+      'İspanyolca': 'ES',
+      'Rusça': 'RU',
+      'Çince': 'CN',
+      'Japonca': 'JP',
+      'Korece': 'KR',
+      'İtalyanca': 'IT',
+      'Portekizce': 'PT',
+      'Hollandaca': 'NL',
+      'Farsça': 'IR',
+      'Lehçe': 'PL',
+      'Ukraynaca': 'UA',
+      'Hintçe': 'IN',
+      'Romence': 'RO',
+      'Yunanca': 'GR',
+      'Hırvatça': 'HR',
+      'Çekçe': 'CZ',
+      'Macarca': 'HU',
+      'Bulgarca': 'BG',
+      'Sırpça': 'RS',
+      'Slovakça': 'SK',
+      'Slovence': 'SI',
+      'Fince': 'FI',
+      'İsveççe': 'SE',
+      'Norveççe': 'NO',
+      'Danca': 'DK',
+      'İbranice': 'IL',
+      'Tayca': 'TH',
+      'Vietnamca': 'VN',
+      'Endonezce': 'ID',
+      'Malayca': 'MY',
+      'Filipince': 'PH',
+      'Bengalce': 'BD',
+      'Tamilce': 'IN',
+      'Urduca': 'PK',
+      'Svahili': 'KE',
+      'Katalanca': 'ES',
+      'Baskça': 'ES',
+      'Galiçyaca': 'ES',
+      'Litvanca': 'LT',
+      'Letonca': 'LV',
+      'Estonca': 'EE',
+      'Arnavutça': 'AL',
+      'Makedonca': 'MK',
+      'Boşnakça': 'BA',
+      'İzlandaca': 'IS',
+      'Gürcüce': 'GE',
+      'Ermenice': 'AM',
+      'Azerice': 'AZ',
+      'Kazakça': 'KZ',
+      'Özbekçe': 'UZ',
+      'Moğolca': 'MN'
+    };
+
+    // World Map Render - Clean svgMap Implementation
+    let geoMapInstance = null;
+
+    function renderCountryLanguageMap(languages) {
+      const mapContainer = document.getElementById('geoMapContainer');
+      const langContainer = document.getElementById('geoLanguageList');
+      
+      if (!mapContainer) return;
+
+      // Clear previous
+      mapContainer.innerHTML = '';
+      if (langContainer) langContainer.innerHTML = '';
+      
+      // Prepare data
+      const mapValues = {};
+      let maxCount = 0;
+      
+      const mergedLanguages = languages && languages.length > 0 ? mergeLanguages(languages) : [];
+      
+      mergedLanguages.forEach(item => {
+        const countryCode = languageCountryMap[item.name];
+        if (countryCode && item.count > 0) {
+          mapValues[countryCode] = { users: item.count };
+          if (item.count > maxCount) maxCount = item.count;
+        }
+      });
+
+      // Create map
+      try {
+        geoMapInstance = new svgMap({
+          targetElementID: 'geoMapContainer',
+          mouseWheelZoomEnabled: false,
+          colorMax: '#4f46e5',
+          colorMin: '#c7d2fe',
+          colorNoData: '#e2e8f0',
+          flagType: 'emoji',
+          noDataText: 'Veri yok',
+          data: {
+            data: {
+              users: {
+                name: 'Kullanıcı',
+                format: '{0}',
+                thousandSeparator: '.',
+                thresholdMax: maxCount || 1000,
+                thresholdMin: 0
+              }
+            },
+            applyData: 'users',
+            values: mapValues
+          }
+        });
+      } catch (e) {
+        console.error('Map error:', e);
+      }
+
+      // Render language list (all languages, no limit)
+      if (langContainer) {
+        if (mergedLanguages.length === 0) {
+          langContainer.innerHTML = `
+            <div class="geo-lang-row" style="opacity: 0.5; justify-content: center;">
+              <span>Veri bulunamadı</span>
+            </div>
+          `;
+        } else {
+          langContainer.innerHTML = mergedLanguages.map((item, index) => {
+            return `
+              <div class="geo-lang-row">
+                <span class="geo-lang-rank rank-${index + 1}">${index + 1}</span>
+                <span class="geo-lang-flag">${item.flag}</span>
+                <span class="geo-lang-name">${item.name}</span>
+                <span class="geo-lang-count">${formatNumber(item.count)}</span>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    // Get country flag emoji
+    function getCountryFlag(code) {
+      if (!code || code.length !== 2) return '🌍';
+      const codePoints = code.toUpperCase().split('').map(char => 127397 + char.charCodeAt(0));
+      return String.fromCodePoint(...codePoints);
+    }
+
+    // =====================================================
+    // Trend Page Additional Components
+    // =====================================================
+
+    // Render Monthly Statistics Table
+    function renderMonthlyStatsTable(monthlyVisits, monthlyInteractions) {
+      const container = document.getElementById('monthlyStatsTable');
+      if (!container) return;
+
+      const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
+                         'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>Ay</th>
+              <th style="text-align: right;">Ziyaretçi</th>
+              <th style="text-align: right;">Etkileşim</th>
+              <th style="text-align: right;">Oran (E/Z)</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      monthlyVisits.forEach((visits, index) => {
+        const interactions = monthlyInteractions[index] || 0;
+        const ratio = visits > 0 ? (interactions / visits).toFixed(2) : '0.00';
+        
+        html += `
+          <tr>
+            <td class="month-name">${monthNames[index]}</td>
+            <td class="number-cell">${formatNumber(visits)}</td>
+            <td class="number-cell">${formatNumber(interactions)}</td>
+            <td class="number-cell">${ratio}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    // Render Site Performance Table (for grouped reports)
+    function renderSitePerformanceTable(siteDataMap) {
+      const page = document.getElementById('sitePerformancePage');
+      const section = document.getElementById('sitePerformanceSection');
+      const container = document.getElementById('sitePerformanceTable');
+      
+      if (!page || !section || !container || !siteDataMap) {
+        if (page) page.style.display = 'none';
+        if (section) section.style.display = 'none';
+        return;
+      }
+
+      // Convert to array and sort by total visits (highest first)
+      const sites = Object.entries(siteDataMap)
+        .map(([siteId, info]) => ({
+          id: siteId,
+          name: info.name,
+          shortName: getShortSiteName(info.name),
+          visits: info.totalVisits,
+          interactions: info.totalInteractions,
+          ratio: info.totalVisits > 0 ? (info.totalInteractions / info.totalVisits).toFixed(2) : '0.00'
+        }))
+        .sort((a, b) => b.visits - a.visits);
+
+      if (sites.length === 0) {
+        page.style.display = 'none';
+        section.style.display = 'none';
+        return;
+      }
+
+      page.style.display = 'block';
+      section.style.display = 'block';
+
+      // Calculate totals for the footer
+      const totalVisits = sites.reduce((sum, s) => sum + s.visits, 0);
+      const totalInteractions = sites.reduce((sum, s) => sum + s.interactions, 0);
+      const totalRatio = totalVisits > 0 ? (totalInteractions / totalVisits).toFixed(2) : '0.00';
+
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Site</th>
+              <th style="text-align: right;">Ziyaretçi</th>
+              <th style="text-align: right;">Etkileşim</th>
+              <th style="text-align: right;">Oran (E/Z)</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      sites.forEach((site, index) => {
+        const isTop = index === 0;
+        html += `
+          <tr class="${isTop ? 'top-site' : ''}">
+            <td class="rank-cell">${index + 1}</td>
+            <td class="site-name-cell">${site.shortName || site.name}</td>
+            <td class="number-cell">${formatNumber(site.visits)}</td>
+            <td class="number-cell">${formatNumber(site.interactions)}</td>
+            <td class="number-cell">${site.ratio}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td></td>
+              <td class="site-name-cell"><strong>TOPLAM</strong></td>
+              <td class="number-cell"><strong>${formatNumber(totalVisits)}</strong></td>
+              <td class="number-cell"><strong>${formatNumber(totalInteractions)}</strong></td>
+              <td class="number-cell"><strong>${totalRatio}</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    // Render Seasonal Analysis
+    function renderSeasonalAnalysis(monthlyVisits, monthlyInteractions) {
+      const container = document.getElementById('seasonalGrid');
+      if (!container) return;
+
+      const seasons = [
+        { name: 'İlkbahar', icon: '🌸', months: [2, 3, 4] },  // Mart, Nisan, Mayıs
+        { name: 'Yaz', icon: '☀️', months: [5, 6, 7] },      // Haziran, Temmuz, Ağustos
+        { name: 'Sonbahar', icon: '🍂', months: [8, 9, 10] }, // Eylül, Ekim, Kasım
+        { name: 'Kış', icon: '❄️', months: [11, 0, 1] }      // Aralık, Ocak, Şubat
+      ];
+
+      container.innerHTML = seasons.map(season => {
+        const totalVisits = season.months.reduce((sum, m) => sum + (monthlyVisits[m] || 0), 0);
+        const totalInteractions = season.months.reduce((sum, m) => sum + (monthlyInteractions[m] || 0), 0);
+
+        return `
+          <div class="season-card">
+            <div class="season-icon">${season.icon}</div>
+            <div class="season-info">
+              <div class="season-name">${season.name}</div>
+              <div class="season-stats">
+                <div class="season-stat">
+                  <span class="stat-label">Ziyaret</span>
+                  <span class="stat-value">${formatNumber(totalVisits)}</span>
+                </div>
+                <div class="season-stat">
+                  <span class="stat-label">Etkileşim</span>
+                  <span class="stat-value">${formatNumber(totalInteractions)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Peak Performance Days - Just the top 1
+    function renderPeakDays(allDailyData, siteComparisons = null) {
+      const peakVisitDate = document.getElementById('peakVisitDate');
+      const peakVisitValue = document.getElementById('peakVisitValue');
+      const peakInteractionDate = document.getElementById('peakInteractionDate');
+      const peakInteractionValue = document.getElementById('peakInteractionValue');
+      
+      if (!peakVisitDate || !peakInteractionDate) return;
+
+      // Format dates helper
+      const formatDate = (dateStr) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('tr-TR', { 
+          day: 'numeric', 
+          month: 'long'
+        });
+      };
+
+      // GROUPED REPORT: Use site comparisons data
+      if (siteComparisons && siteComparisons.peakVisitDay && siteComparisons.peakInteractionDay) {
+        const pvd = siteComparisons.peakVisitDay;
+        const pid = siteComparisons.peakInteractionDay;
+        
+        // Render peak visit with site name
+        peakVisitDate.innerHTML = `${formatDate(pvd.date)}<br><small class="site-label">${getShortSiteName(pvd.siteName)}</small>`;
+        peakVisitValue.textContent = formatNumber(pvd.visits);
+
+        // Render peak interaction with site name
+        peakInteractionDate.innerHTML = `${formatDate(pid.date)}<br><small class="site-label">${getShortSiteName(pid.siteName)}</small>`;
+        peakInteractionValue.textContent = formatNumber(pid.interactions);
+        return;
+      }
+
+      // SINGLE SITE: Use aggregated daily data
+      if (!allDailyData || Object.keys(allDailyData).length === 0) {
+        peakVisitDate.textContent = 'Veri yok';
+        peakVisitValue.textContent = '-';
+        peakInteractionDate.textContent = 'Veri yok';
+        peakInteractionValue.textContent = '-';
+        return;
+      }
+
+      // Convert daily data to array - handle both formats
+      const dailyArray = Object.entries(allDailyData).map(([date, value]) => {
+        if (typeof value === 'object') {
+          return {
+            date,
+            visits: value.visits || 0,
+            interactions: value.interactions || 0
+          };
+        }
+        return {
+          date,
+          visits: 0,
+          interactions: value || 0
+        };
+      }).filter(d => d.visits > 0 || d.interactions > 0);
+
+      if (dailyArray.length === 0) {
+        peakVisitDate.textContent = 'Veri yok';
+        peakVisitValue.textContent = '-';
+        peakInteractionDate.textContent = 'Veri yok';
+        peakInteractionValue.textContent = '-';
+        return;
+      }
+
+      // Find peak visit day
+      const peakVisit = dailyArray.reduce((max, d) => d.visits > max.visits ? d : max, dailyArray[0]);
+      
+      // Find peak interaction day
+      const peakInteraction = dailyArray.reduce((max, d) => d.interactions > max.interactions ? d : max, dailyArray[0]);
+
+      // Render peak visit
+      peakVisitDate.textContent = formatDate(peakVisit.date);
+      peakVisitValue.textContent = formatNumber(peakVisit.visits);
+
+      // Render peak interaction
+      peakInteractionDate.textContent = formatDate(peakInteraction.date);
+      peakInteractionValue.textContent = formatNumber(peakInteraction.interactions);
+    }
+
+    // =====================================================
+    // Site Filter Panel Functions
+    // =====================================================
+    
+    function initSiteFilterPanel() {
+      const panel = document.getElementById('siteFilterPanel');
+      const list = document.getElementById('siteFilterList');
+      const totalCount = document.getElementById('totalSiteCount');
+      const selectedCount = document.getElementById('selectedSiteCount');
+      
+      if (!panel || !list || !fullSiteDataMap) {
+        return;
+      }
+      
+      // Show panel
+      panel.style.display = 'flex';
+      totalCount.textContent = allSelectedSites.length;
+      
+      // Render site checkboxes
+      let html = '';
+      allSelectedSites.forEach(site => {
+        const siteInfo = fullSiteDataMap[site.id];
+        const shortName = getShortSiteName(site.name);
+        const visits = siteInfo ? formatNumber(siteInfo.totalVisits) : '0';
+        
+        html += `
+          <label class="site-filter-item" data-site-id="${site.id}">
+            <input type="checkbox" class="site-filter-checkbox" value="${site.id}" checked>
+            <span class="site-filter-name">${shortName}</span>
+            <span class="site-filter-visits">${visits}</span>
+          </label>
+        `;
+      });
+      list.innerHTML = html;
+      
+      updateSelectedCount();
+      
+      // Add event listeners
+      list.querySelectorAll('.site-filter-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', handleSiteFilterChange);
+      });
+      
+      // Toggle panel collapse
+      document.getElementById('filterToggleBtn').addEventListener('click', toggleFilterPanel);
+      
+      // Select all / Deselect all
+      document.getElementById('filterSelectAll').addEventListener('click', () => {
+        list.querySelectorAll('.site-filter-checkbox').forEach(cb => cb.checked = true);
+        activeSiteIds = new Set(allSelectedSites.map(s => String(s.id)));
+        updateSelectedCount();
+        recalculateWithActiveFilters();
+      });
+      
+      document.getElementById('filterDeselectAll').addEventListener('click', () => {
+        // Keep at least one selected
+        const checkboxes = list.querySelectorAll('.site-filter-checkbox');
+        checkboxes.forEach((cb, i) => cb.checked = i === 0);
+        activeSiteIds = new Set([String(allSelectedSites[0].id)]);
+        updateSelectedCount();
+        recalculateWithActiveFilters();
+      });
+    }
+    
+    function toggleFilterPanel() {
+      const panel = document.getElementById('siteFilterPanel');
+      const content = document.getElementById('siteFilterContent');
+      const btn = document.getElementById('filterToggleBtn');
+      
+      panel.classList.toggle('collapsed');
+      
+      if (panel.classList.contains('collapsed')) {
+        btn.innerHTML = '<i data-lucide="chevron-right"></i>';
+      } else {
+        btn.innerHTML = '<i data-lucide="chevron-left"></i>';
+      }
+      
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    
+    function updateSelectedCount() {
+      const selectedCount = document.getElementById('selectedSiteCount');
+      if (selectedCount) {
+        selectedCount.textContent = activeSiteIds.size;
+      }
+    }
+    
+    function handleSiteFilterChange(e) {
+      const siteId = e.target.value;
+      
+      if (e.target.checked) {
+        activeSiteIds.add(siteId);
+      } else {
+        // Don't allow deselecting all
+        if (activeSiteIds.size <= 1) {
+          e.target.checked = true;
+          return;
+        }
+        activeSiteIds.delete(siteId);
+      }
+      
+      updateSelectedCount();
+      recalculateWithActiveFilters();
+    }
+    
+    function recalculateWithActiveFilters() {
+      if (!fullSiteDataMap || activeSiteIds.size === 0) return;
+      
+      // Create new aggregated data from active sites only
+      const aggregatedData = createEmptyDataCollector();
+      const activeSiteDataMap = {};
+      
+      activeSiteIds.forEach(siteIdStr => {
+        // Try both string and number keys (fullSiteDataMap uses number keys)
+        const siteIdNum = Number(siteIdStr);
+        const siteInfo = fullSiteDataMap[siteIdNum] || fullSiteDataMap[siteIdStr];
+        if (siteInfo) {
+          // Use number key to match original structure
+          activeSiteDataMap[siteIdNum] = siteInfo;
+          aggregateDataCollector(aggregatedData, siteInfo.data);
+        } else {
+          console.warn('Site data not found for ID:', siteIdStr, 'Available keys:', Object.keys(fullSiteDataMap));
+        }
+      });
+      
+      const isGroupedReport = activeSiteIds.size > 1;
+      const activeSites = allSelectedSites.filter(s => activeSiteIds.has(String(s.id)));
+      
+      // Calculate totals
+      const totalVisits = aggregatedData.monthlyVisits.reduce((a, b) => a + b, 0);
+      const totalInteractions = aggregatedData.monthlyInteractions.reduce((a, b) => a + b, 0);
+      
+      // Calculate previous year data for active sites only
+      const prevYearData = createEmptyDataCollector();
+      activeSiteIds.forEach(siteIdStr => {
+        const siteIdNum = Number(siteIdStr);
+        const siteInfo = fullSiteDataMap[siteIdNum] || fullSiteDataMap[siteIdStr];
+        if (siteInfo && siteInfo.prevYearData) {
+          aggregateDataCollector(prevYearData, siteInfo.prevYearData);
+        }
+      });
+      
+      const prevTotalVisits = prevYearData.monthlyVisits.reduce((a, b) => a + b, 0);
+      const prevTotalInteractions = prevYearData.monthlyInteractions.reduce((a, b) => a + b, 0);
+      
+      // Calculate year-over-year growth
+      let visitGrowth = 0;
+      if (prevTotalVisits > 0) {
+        visitGrowth = ((totalVisits - prevTotalVisits) / prevTotalVisits * 100).toFixed(1);
+      }
+      
+      let interactionGrowth = 0;
+      if (prevTotalInteractions > 0) {
+        interactionGrowth = ((totalInteractions - prevTotalInteractions) / prevTotalInteractions * 100).toFixed(1);
+      }
+      
+      // Calculate site comparisons if grouped
+      let siteComparisons = null;
+      if (isGroupedReport) {
+        siteComparisons = calculateSiteComparisons(activeSiteDataMap, aggregatedData);
+      }
+      
+      // Build top searched with site attribution
+      // Show site names if original report was grouped (fullSiteDataMap has multiple sites)
+      const wasOriginallyGrouped = Object.keys(fullSiteDataMap).length > 1;
+      
+      const topSearched = Object.entries(aggregatedData.allSearchTerms)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => {
+          let topSite = null;
+          // Always show site name if original report was grouped
+          if (wasOriginallyGrouped) {
+            let maxCount = 0;
+            // Search in active sites first
+            Object.entries(activeSiteDataMap).forEach(([siteId, siteInfo]) => {
+              const searchTerms = siteInfo.data?.allSearchTerms || {};
+              const siteCount = searchTerms[name] || 0;
+              if (siteCount > maxCount) {
+                maxCount = siteCount;
+                topSite = siteInfo.name;
+              }
+            });
+          }
+          return { name, count, siteName: topSite };
+        });
+      
+      // Build top routed with site attribution
+      const topRouted = Object.entries(aggregatedData.allRouteDestinations)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => {
+          let topSite = null;
+          // Always show site name if original report was grouped
+          if (wasOriginallyGrouped) {
+            let maxCount = 0;
+            Object.entries(activeSiteDataMap).forEach(([siteId, siteInfo]) => {
+              const routeDests = siteInfo.data?.allRouteDestinations || {};
+              const siteCount = routeDests[name] || 0;
+              if (siteCount > maxCount) {
+                maxCount = siteCount;
+                topSite = siteInfo.name;
+              }
+            });
+          }
+          return { name, count, siteName: topSite };
+        });
+      
+      // Calculate average stats from active sites
+      // totalAvgTime and totalBounceRate are sums, statsCount is the divisor
+      let avgSessionTime = 0;
+      let avgBounceRate = 0;
+      
+      // Always recalculate from active sites to ensure correct values
+      let totalTime = 0;
+      let totalBounce = 0;
+      let totalStatsCount = 0;
+      
+      activeSiteIds.forEach(siteIdStr => {
+        const siteIdNum = Number(siteIdStr);
+        const siteInfo = fullSiteDataMap[siteIdNum] || fullSiteDataMap[siteIdStr];
+        
+        if (siteInfo && siteInfo.data) {
+          totalTime += siteInfo.data.totalAvgTime || 0;
+          totalBounce += siteInfo.data.totalBounceRate || 0;
+          totalStatsCount += siteInfo.data.statsCount || 0;
+        }
+      });
+      
+      if (totalStatsCount > 0) {
+        avgSessionTime = Math.round(totalTime / totalStatsCount);
+        avgBounceRate = parseFloat((totalBounce / totalStatsCount).toFixed(1));
+      }
+      
+      // Build data object
+      const data = {
+        year: currentYear,
+        isGroupedReport: isGroupedReport,
+        selectedSites: activeSites,
+        totalVisits: totalVisits,
+        totalInteractions: totalInteractions,
+        monthlyVisits: aggregatedData.monthlyVisits,
+        monthlyInteractions: aggregatedData.monthlyInteractions,
+        dailyData: aggregatedData.allDailyData,
+        platforms: aggregatedData.totalPlatforms,
+        topSearched: topSearched,
+        topRouted: topRouted,
+        eventSummary: aggregatedData.eventSummary,
+        topLanguages: Object.entries(aggregatedData.allLanguages)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([lang, count]) => ({ lang, count })),
+        hourlyData: aggregatedData.hourlyData,
+        avgSessionTime: avgSessionTime,
+        avgBounceRate: avgBounceRate,
+        visitGrowth: parseFloat(visitGrowth),
+        interactionGrowth: parseFloat(interactionGrowth),
+        prevYearVisits: prevTotalVisits,
+        prevYearInteractions: prevTotalInteractions,
+        dayOfWeekData: aggregatedData.dayOfWeekData,
+        topCountries: Object.entries(aggregatedData.allCountries)
+          .sort((a, b) => b[1].visits - a[1].visits)
+          .slice(0, 10)
+          .map(([country, data]) => ({ country, visits: data.visits, code: data.code })),
+        siteComparisons: siteComparisons,
+        siteDataMap: wasOriginallyGrouped ? activeSiteDataMap : null
+      };
+      
+      // Re-render
+      renderAnnualSummary(data);
+      
+      // Update header to show active sites
+      updateHeaderWithSites(activeSites);
+    }
+
+    // Year selector change
+    document.getElementById('yearSelector').addEventListener('change', function() {
+      document.getElementById('coverYear').textContent = this.value;
+      loadAnnualData(this.value);
+    });
+
+    // =====================================================
+    // Component Toggle System
+    // =====================================================
+    
+    const componentConfig = {
+      // Highlights Page - Main Groups
+      'highlights-stats': { page: 'highlights', name: 'Ana İstatistikler', default: true, isGroup: true },
+      'user-stats': { page: 'highlights', name: 'Kullanıcı Sayıları', default: true, isGroup: true },
+      'interaction-stats': { page: 'highlights', name: 'Etkileşim Sayıları', default: true, isGroup: true },
+      'year-comparison': { page: 'highlights', name: 'Yıllık Karşılaştırma', default: true, isGroup: true },
+      
+      // Highlights Page - Ana İstatistikler Sub-items
+      'stat-total-visits': { page: 'highlights', name: 'Toplam Ziyaret', default: true, parent: 'highlights-stats' },
+      'stat-total-interactions': { page: 'highlights', name: 'Toplam Etkileşim', default: true, parent: 'highlights-stats' },
+      'stat-peak-month': { page: 'highlights', name: 'En Yoğun Ay', default: true, parent: 'highlights-stats' },
+      'stat-daily-average': { page: 'highlights', name: 'Günlük Kullanıcı Ort.', default: true, parent: 'highlights-stats' },
+      'stat-session-time': { page: 'highlights', name: 'Ort. Oturum Süresi', default: true, parent: 'highlights-stats' },
+      'stat-engagement-rate': { page: 'highlights', name: 'Etkileşim Oranı', default: true, parent: 'highlights-stats' },
+      'stat-events-per-user': { page: 'highlights', name: 'Kull. Başına Etk.', default: true, parent: 'highlights-stats' },
+      
+      // Highlights Page - Kullanıcı Sayıları Sub-items
+      'user-lowest': { page: 'highlights', name: 'En Düşük', default: true, parent: 'user-stats' },
+      'user-highest': { page: 'highlights', name: 'En Yüksek', default: true, parent: 'user-stats' },
+      'user-average': { page: 'highlights', name: 'Ortalama', default: true, parent: 'user-stats' },
+      
+      // Highlights Page - Etkileşim Sayıları Sub-items
+      'interaction-lowest': { page: 'highlights', name: 'En Düşük', default: true, parent: 'interaction-stats' },
+      'interaction-highest': { page: 'highlights', name: 'En Yüksek', default: true, parent: 'interaction-stats' },
+      'interaction-average': { page: 'highlights', name: 'Ortalama', default: true, parent: 'interaction-stats' },
+      
+      // Highlights Page - Yıllık Karşılaştırma Sub-items
+      'comparison-visit': { page: 'highlights', name: 'Ziyaretçi Büyümesi', default: true, parent: 'year-comparison' },
+      'comparison-interaction': { page: 'highlights', name: 'Etkileşim Büyümesi', default: true, parent: 'year-comparison' },
+      
+      // Trend Page
+      'monthly-trend-chart': { page: 'trend', name: 'Trend Grafiği', default: true },
+      'monthly-stats-table': { page: 'trend', name: 'Aylık Detay Tablo', default: true },
+      'seasonal-analysis': { page: 'trend', name: 'Mevsimsel Analiz', default: true },
+      'peak-days': { page: 'trend', name: 'En Yüksek Performans', default: true },
+      
+      // Performers Page
+      'top-searched': { page: 'performers', name: 'En Çok Aranan', default: true },
+      'top-routed': { page: 'performers', name: 'En Çok Rota Çizilen', default: true },
+      'platform-distribution': { page: 'performers', name: 'Platform Dağılımı', default: true },
+      'event-type-distribution': { page: 'performers', name: 'Etkinlik Türü', default: true },
+      
+      // Details Page
+      'weekly-distribution': { page: 'details', name: 'Haftalık Dağılım', default: true },
+      'hourly-distribution': { page: 'details', name: 'Saatlik Yoğunluk', default: true },
+      'monthly-deviation': { page: 'details', name: 'Aylık Sapma', default: true },
+      
+      // Country Language Page
+      'country-language-map': { page: 'country-language', name: 'Harita & Dil', default: true }
+    };
+
+    // Load component visibility from localStorage
+    function loadComponentVisibility() {
+      const saved = localStorage.getItem('componentVisibility');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          return {};
+        }
+      }
+      return {};
+    }
+
+    // Save component visibility to localStorage
+    function saveComponentVisibility(visibility) {
+      localStorage.setItem('componentVisibility', JSON.stringify(visibility));
+    }
+
+    // Get current component visibility state
+    function getComponentVisibility() {
+      const saved = loadComponentVisibility();
+      const visibility = {};
+      
+      Object.keys(componentConfig).forEach(key => {
+        visibility[key] = saved.hasOwnProperty(key) ? saved[key] : componentConfig[key].default;
+      });
+      
+      return visibility;
+    }
+
+    // Apply visibility to DOM
+    function applyComponentVisibility(visibility) {
+      Object.entries(visibility).forEach(([componentId, isVisible]) => {
+        const elements = document.querySelectorAll(`[data-component="${componentId}"]`);
+        elements.forEach(el => {
+          if (isVisible) {
+            el.classList.remove('component-hidden');
+          } else {
+            el.classList.add('component-hidden');
+          }
+        });
+      });
+      
+      // Update layout classes
+      updateDynamicLayouts();
+      
+      // Update counter
+      updateComponentCount();
+    }
+
+    // Update dynamic layouts based on visible components
+    function updateDynamicLayouts() {
+      // Performers grid - check if only one visible
+      const performersGrid = document.querySelector('.performers-grid');
+      if (performersGrid) {
+        const visiblePerformers = performersGrid.querySelectorAll('[data-component]:not(.component-hidden)');
+        if (visiblePerformers.length === 1) {
+          visiblePerformers[0].style.gridColumn = '1 / -1';
+        } else {
+          performersGrid.querySelectorAll('[data-component]').forEach(el => {
+            el.style.gridColumn = '';
+          });
+        }
+      }
+      
+      // Check if entire pages should be hidden
+      checkPageVisibility();
+    }
+
+    // Check if a page has no visible components and hide it
+    function checkPageVisibility() {
+      const pageMapping = {
+        'highlights': '.highlights-page',
+        'trend': '.trend-page',
+        'performers': '.performers-page',
+        'details': '.details-page',
+        'country-language': '.country-language-page'
+      };
+      
+      const visibility = getComponentVisibility();
+      
+      Object.entries(pageMapping).forEach(([pageKey, pageSelector]) => {
+        const page = document.querySelector(pageSelector);
+        if (!page) return;
+        
+        // Get all components for this page
+        const pageComponents = Object.entries(componentConfig)
+          .filter(([id, config]) => config.page === pageKey)
+          .map(([id]) => id);
+        
+        // Check if any component is visible
+        const hasVisibleComponent = pageComponents.some(compId => visibility[compId]);
+        
+        if (hasVisibleComponent) {
+          page.style.display = '';
+        } else {
+          page.style.display = 'none';
+        }
+      });
+    }
+
+    // Update component counter
+    function updateComponentCount() {
+      const visibility = getComponentVisibility();
+      // Only count non-child components for the main count
+      const mainComponents = Object.entries(componentConfig).filter(([id, config]) => !config.parent);
+      const active = mainComponents.filter(([id]) => visibility[id]).length;
+      const total = mainComponents.length;
+      
+      const activeEl = document.getElementById('activeComponentCount');
+      const totalEl = document.getElementById('totalComponentCount');
+      
+      if (activeEl) activeEl.textContent = active;
+      if (totalEl) totalEl.textContent = total;
+    }
+    
+    // Update group checkbox states based on children
+    function updateGroupCheckboxStates() {
+      const visibility = getComponentVisibility();
+      
+      document.querySelectorAll('.group-checkbox').forEach(groupCheckbox => {
+        const parentId = groupCheckbox.dataset.component;
+        const children = document.querySelectorAll(`[data-parent="${parentId}"]`);
+        
+        if (children.length === 0) return;
+        
+        const checkedCount = Array.from(children).filter(child => {
+          const childId = child.dataset.component;
+          return visibility[childId];
+        }).length;
+        
+        if (checkedCount === 0) {
+          groupCheckbox.checked = false;
+          groupCheckbox.indeterminate = false;
+        } else if (checkedCount === children.length) {
+          groupCheckbox.checked = true;
+          groupCheckbox.indeterminate = false;
+        } else {
+          groupCheckbox.checked = true;
+          groupCheckbox.indeterminate = true;
+        }
+      });
+    }
+
+    // Initialize component toggle panel
+    function initComponentTogglePanel() {
+      console.log('=== initComponentTogglePanel called ===');
+      const panel = document.getElementById('componentTogglePanel');
+      const toggleBtn = document.getElementById('componentToggleBtn');
+      const content = document.getElementById('componentToggleContent');
+      
+      if (!panel) {
+        console.log('Panel not found, exiting');
+        return;
+      }
+      
+      console.log('Checkboxes found:', document.querySelectorAll('.component-checkbox').length);
+      
+      // Panel collapse/expand
+      toggleBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.toggle('collapsed');
+        const icon = toggleBtn.querySelector('svg');
+        if (icon) {
+          icon.style.transform = panel.classList.contains('collapsed') ? 'rotate(180deg)' : '';
+        }
+      });
+      
+      // Group expand/collapse buttons
+      document.querySelectorAll('.group-expand-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const isExpanded = btn.dataset.expanded === 'true';
+          btn.dataset.expanded = !isExpanded;
+          btn.textContent = !isExpanded ? '▼' : '▶';
+          
+          const groupName = btn.closest('.component-item').querySelector('.group-checkbox').dataset.group;
+          const sublist = document.querySelector(`.component-sublist[data-group="${groupName}"]`);
+          if (sublist) {
+            sublist.classList.toggle('expanded', !isExpanded);
+          }
+        });
+      });
+      
+      // Load and apply saved visibility
+      const visibility = getComponentVisibility();
+      
+      // Set checkbox states
+      document.querySelectorAll('.component-checkbox').forEach(checkbox => {
+        const componentId = checkbox.dataset.component;
+        if (componentId && visibility.hasOwnProperty(componentId)) {
+          checkbox.checked = visibility[componentId];
+        }
+      });
+      
+      // Update group checkbox states based on children
+      updateGroupCheckboxStates();
+      
+      // Apply visibility to DOM
+      applyComponentVisibility(visibility);
+      
+      // Group checkbox change handler (parent controls children)
+      document.querySelectorAll('.group-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+          const componentId = e.target.dataset.component;
+          const isChecked = e.target.checked;
+          const visibility = getComponentVisibility();
+          
+          // Update parent
+          visibility[componentId] = isChecked;
+          
+          // Update all children
+          const children = document.querySelectorAll(`[data-parent="${componentId}"]`);
+          children.forEach(child => {
+            child.checked = isChecked;
+            const childId = child.dataset.component;
+            visibility[childId] = isChecked;
+          });
+          
+          saveComponentVisibility(visibility);
+          applyComponentVisibility(visibility);
+        });
+      });
+      
+      // Child checkbox change handler
+      document.querySelectorAll('.component-checkbox:not(.group-checkbox)').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+          const componentId = e.target.dataset.component;
+          const parentId = e.target.dataset.parent;
+          const visibility = getComponentVisibility();
+          
+          visibility[componentId] = e.target.checked;
+          
+          // Update parent state
+          if (parentId) {
+            const siblings = document.querySelectorAll(`[data-parent="${parentId}"]`);
+            const checkedCount = Array.from(siblings).filter(s => s.checked).length;
+            const parentCheckbox = document.querySelector(`.group-checkbox[data-component="${parentId}"]`);
+            
+            if (parentCheckbox) {
+              if (checkedCount === 0) {
+                parentCheckbox.checked = false;
+                parentCheckbox.indeterminate = false;
+                visibility[parentId] = false;
+              } else if (checkedCount === siblings.length) {
+                parentCheckbox.checked = true;
+                parentCheckbox.indeterminate = false;
+                visibility[parentId] = true;
+              } else {
+                parentCheckbox.checked = true;
+                parentCheckbox.indeterminate = true;
+                visibility[parentId] = true;
+              }
+            }
+          }
+          
+          saveComponentVisibility(visibility);
+          applyComponentVisibility(visibility);
+        });
+      });
+      
+      console.log('Event listeners attached to checkboxes');
+      
+      // Page toggle all buttons
+      document.querySelectorAll('.page-toggle-all').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const pageGroup = e.target.closest('.component-page-group');
+          const checkboxes = pageGroup.querySelectorAll('.component-checkbox');
+          const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+          
+          checkboxes.forEach(cb => {
+            cb.checked = !allChecked;
+            cb.dispatchEvent(new Event('change'));
+          });
+        });
+      });
+      
+      // Select all button
+      document.getElementById('componentSelectAll')?.addEventListener('click', () => {
+        document.querySelectorAll('.component-checkbox').forEach(cb => {
+          if (!cb.checked) {
+            cb.checked = true;
+            cb.dispatchEvent(new Event('change'));
+          }
+        });
+      });
+      
+      // Reset button
+      document.getElementById('componentReset')?.addEventListener('click', () => {
+        localStorage.removeItem('componentVisibility');
+        document.querySelectorAll('.component-checkbox').forEach(cb => {
+          const componentId = cb.dataset.component;
+          cb.checked = componentConfig[componentId]?.default ?? true;
+        });
+        const visibility = getComponentVisibility();
+        applyComponentVisibility(visibility);
+      });
+      
+      // Initialize Lucide icons in panel
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    }
+
+  </script>
+</body>
+
+</html>
+
