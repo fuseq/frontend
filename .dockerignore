@@ -1,0 +1,9 @@
+.git
+.gitignore
+README.md
+.DS_Store
+*.log
+Dockerfile
+captain-definition
+nginx.conf
+
