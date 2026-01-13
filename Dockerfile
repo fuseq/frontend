@@ -13,3 +13,4 @@ EXPOSE 80
 # Nginx'i başlat
 CMD ["nginx", "-g", "daemon off;"]
 
+
