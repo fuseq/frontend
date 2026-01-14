@@ -1883,16 +1883,6 @@
 
     // Render annual summary
     function renderAnnualSummary(data) {
-      // Add grouped-report class for print styling
-      const summaryContainer = document.querySelector('.summary-container');
-      if (summaryContainer) {
-        if (data.isGroupedReport) {
-          summaryContainer.classList.add('grouped-report');
-        } else {
-          summaryContainer.classList.remove('grouped-report');
-        }
-      }
-
       // Use monthlyVisits for user counts
       const monthlyVisits = data.monthlyVisits || data.monthlyData || new Array(12).fill(0);
       const monthlyInteractions = data.monthlyInteractions || monthlyVisits.map(v => v * 2);
