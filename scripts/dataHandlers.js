@@ -78,19 +78,33 @@ function applyChartDefaults() {
     const colors = getChartColors();
     
     Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+    Chart.defaults.font.size = 13; // Increased from default 12
+    Chart.defaults.font.weight = '500'; // Semi-bold for better clarity
     Chart.defaults.color = colors.text;
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
     Chart.defaults.plugins.legend.labels.padding = 20;
+    Chart.defaults.plugins.legend.labels.font = { size: 13, weight: '500' };
     Chart.defaults.plugins.legend.labels.color = colors.text;
     Chart.defaults.plugins.tooltip.backgroundColor = colors.tooltipBg;
     Chart.defaults.plugins.tooltip.titleColor = colors.tooltipText;
+    Chart.defaults.plugins.tooltip.titleFont = { size: 13, weight: '600' };
     Chart.defaults.plugins.tooltip.bodyColor = colors.text;
+    Chart.defaults.plugins.tooltip.bodyFont = { size: 12, weight: '500' };
     Chart.defaults.plugins.tooltip.borderColor = colors.tooltipBorder;
     Chart.defaults.plugins.tooltip.borderWidth = 1;
     Chart.defaults.plugins.tooltip.cornerRadius = 8;
     Chart.defaults.plugins.tooltip.padding = 12;
     Chart.defaults.elements.bar.borderRadius = 6;
     Chart.defaults.elements.line.tension = 0.4;
+    
+    // Scale/Axis font settings for better readability
+    Chart.defaults.scale.ticks.font = { size: 12, weight: '500' };
+    
+    // Animation optimization to prevent glitches
+    Chart.defaults.animation = false; // Disable all animations to prevent glitches
+    Chart.defaults.responsive = true;
+    Chart.defaults.responsiveAnimationDuration = 0; // Disable resize animations
+    Chart.defaults.maintainAspectRatio = false;
 }
 
 // Initial apply
@@ -101,11 +115,15 @@ const chartRegistry = new Map();
 
 // Register a chart instance
 function registerChart(containerId, chart) {
-    // Destroy existing chart if any
-    if (chartRegistry.has(containerId)) {
-        chartRegistry.get(containerId).destroy();
-    }
+    // Chart is already destroyed in getChartContainer if it existed
     chartRegistry.set(containerId, chart);
+    
+    // Force chart update after a small delay to prevent rendering glitches
+    requestAnimationFrame(() => {
+        if (chart && typeof chart.update === 'function') {
+            chart.update('none'); // Update without animation
+        }
+    });
 }
 
 // Update all charts when theme changes
@@ -224,9 +242,27 @@ function getChartContainer(containerId) {
         console.warn(`Container '${containerId}' not found`);
         return null;
     }
+    
+    // Destroy existing chart before clearing container to prevent glitches
+    if (chartRegistry.has(containerId)) {
+        const existingChart = chartRegistry.get(containerId);
+        if (existingChart) {
+            existingChart.destroy();
+        }
+        chartRegistry.delete(containerId);
+    }
+    
+    // Small delay to ensure DOM is ready and prevent glitches
     container.innerHTML = '';
     const canvas = document.createElement('canvas');
+    // Explicitly set canvas size to prevent rendering issues
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     container.appendChild(canvas);
+    
+    // Force a reflow to ensure canvas is properly sized
+    canvas.offsetHeight;
+    
     return canvas;
 }
 
@@ -820,6 +856,7 @@ export const renderOperatingSystemDistribution = (data, containerId) => {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             cutout: '60%',
             plugins: {
                 title: { display: false },
@@ -901,6 +938,7 @@ export const renderLanguageDistribution = (data, containerId) => {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             cutout: '60%',
             plugins: {
                 title: { display: false },
@@ -987,6 +1025,7 @@ export const renderStoreCategoriesDonutChart = (data, containerId) => {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
             cutout: '55%',
             plugins: {
                 title: { display: false },

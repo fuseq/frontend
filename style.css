@@ -340,10 +340,14 @@ body {
   color: var(--color-text-secondary);
   text-decoration: none;
   font-weight: 500;
+  font-size: var(--font-size-base);
   transition: all var(--transition-fast);
   margin-bottom: var(--spacing-xs);
   position: relative;
   overflow: hidden;
+  min-height: 48px;
+  box-sizing: border-box;
+  line-height: 1.5;
 }
 
 .nav-item::before {
@@ -2003,4 +2007,19 @@ button.nav-item {
   background: transparent;
   border: none;
   font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 48px;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+
+/* Ensure nav-item links have same dimensions */
+a.nav-item {
+  min-height: 48px;
+  box-sizing: border-box;
+  line-height: 1.5;
+  font-size: var(--font-size-base);
+  font-weight: 500;
 }

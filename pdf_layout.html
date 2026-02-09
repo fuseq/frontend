@@ -51,14 +51,168 @@
     </div>
   </header>
 
+  <!-- Component Toggle Panel -->
+  <div class="component-toggle-panel no-print" id="componentTogglePanel">
+    <div class="component-toggle-header">
+      <span class="toggle-icon">📊</span>
+      <span class="toggle-title">Bileşenler</span>
+      <button class="toggle-collapse-btn" id="componentToggleBtn" title="Paneli Küçült">
+        <i data-lucide="chevron-right"></i>
+      </button>
+    </div>
+    <div class="component-toggle-content" id="componentToggleContent">
+      <div class="toggle-info">
+        <span id="activeComponentCount">0</span> / <span id="totalComponentCount">0</span> aktif
+      </div>
+      
+      <!-- Sayfa Bileşenleri -->
+      <div class="component-list">
+        <!-- Özet Bilgiler Grubu -->
+        <div class="component-group">
+          <div class="component-group-header">
+            <span>📋 Özet Bilgiler</span>
+            <button class="group-toggle-btn" data-group="summary-group">▲</button>
+          </div>
+          <div class="component-sublist expanded" data-group="summary-group">
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-main" checked>
+              <span>Ana İstatistikler</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-events-breakdown" checked>
+              <span>Etkinlik Dağılımı</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-busiest-day" checked>
+              <span>En Yoğun Gün</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-platform" checked>
+              <span>Platform Bilgisi</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-languages" checked>
+              <span>Dil Dağılımı</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-total-visits" checked>
+              <span>Toplam Ziyaret</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-hourly-avg" checked>
+              <span>Saatlik Ortalama</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-peak-hours" checked>
+              <span>Pik Saatler</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-engagement" checked>
+              <span>Etkileşim</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-top-units" checked>
+              <span>Popüler Birimler</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="summary-kiosk" checked>
+              <span>Kiosk Bilgisi</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Grafikler -->
+        <div class="component-group">
+          <div class="component-group-header">
+            <span>📊 Grafikler</span>
+            <button class="group-toggle-btn" data-group="charts-group">▲</button>
+          </div>
+          <div class="component-sublist expanded" data-group="charts-group">
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-daily-events" checked>
+              <span>📈 Günlük Etkinlik</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-hourly-events" checked>
+              <span>⏰ Saatlik Ziyaret</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-os-distribution" checked>
+              <span>💻 İşletim Sistemi</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-language" checked>
+              <span>🌍 Dil Dağılımı</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-from-to" checked>
+              <span>🗺️ Rota (Hedef)</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-start-end" checked>
+              <span>📍 Rota (Başlangıç)</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-top-search" checked>
+              <span>🔍 En Çok Aranan</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-searched-events" checked>
+              <span>🔎 Arama Kaynakları</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-category-donut" checked>
+              <span>🥧 Kategori Dağılımı</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="chart-category-trend" checked>
+              <span>📊 Kategori Trendi</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Tablolar -->
+        <div class="component-group">
+          <div class="component-group-header">
+            <span>📋 Tablolar</span>
+            <button class="group-toggle-btn" data-group="tables-group">▲</button>
+          </div>
+          <div class="component-sublist expanded" data-group="tables-group">
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="table-top-units" checked>
+              <span>🏆 En Aktif Birimler</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="table-services" checked>
+              <span>💼 Hizmetler</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="table-floors" checked>
+              <span>🏢 Katlar</span>
+            </label>
+            <label class="component-item sub-item">
+              <input type="checkbox" class="component-checkbox" data-component="table-kiosks" checked>
+              <span>🖥️ Kiosklar</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="toggle-actions">
+        <button class="toggle-btn select-all" id="componentSelectAll">Tümünü Seç</button>
+        <button class="toggle-btn reset" id="componentReset">Sıfırla</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PDF Content -->
   <div class="pdf-container">
     
     <!-- Cover Page -->
-    <section class="pdf-page cover-page">
+    <section class="pdf-page cover-page" data-component="page-cover">
       <div class="cover-content">
-        <div class="cover-header">
-          <img src="assets/inmapper.png" alt="Inmapper" class="inmapper-logo">
+        <div class="cover-top">
+          <img src="assets/inmapper-filigran.png" alt="Inmapper" class="cover-top-logo">
         </div>
         
         <div class="cover-center">
@@ -73,14 +227,17 @@
         </div>
         
         <div class="cover-footer">
-          <img src="assets/inmapper-filigran.png" alt="" class="watermark">
-          <p class="copyright">© 2024 Inmapper. Tüm hakları saklıdır.</p>
+          <p class="copyright">© <span id="copyrightYear"></span> Inmapper. Tüm hakları saklıdır.</p>
         </div>
+      </div>
+      <!-- Page footer with Inmapper logo -->
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
       </div>
     </section>
 
     <!-- Summary Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-page="summary">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="file-text"></i>
@@ -92,29 +249,32 @@
         <div class="summary-card">
           <ul class="summary-list" id="summary-list">
             <!-- Ana istatistikler -->
-            <li id="summary-main"></li>
-            <li id="summary-events-breakdown"></li>
-            <li id="summary-busiest-day"></li>
-            <li id="summary-platform"></li>
+            <li id="summary-main" data-component="summary-main"></li>
+            <li id="summary-events-breakdown" data-component="summary-events-breakdown"></li>
+            <li id="summary-busiest-day" data-component="summary-busiest-day"></li>
+            <li id="summary-platform" data-component="summary-platform"></li>
             <!-- Dil dağılımı -->
-            <li id="summary-languages"></li>
+            <li id="summary-languages" data-component="summary-languages"></li>
             <!-- Ziyaret istatistikleri -->
-            <li id="summary-total-visits"></li>
-            <li id="summary-hourly-avg"></li>
-            <li id="summary-peak-hours"></li>
+            <li id="summary-total-visits" data-component="summary-total-visits"></li>
+            <li id="summary-hourly-avg" data-component="summary-hourly-avg"></li>
+            <li id="summary-peak-hours" data-component="summary-peak-hours"></li>
             <!-- Kullanıcı davranışı -->
-            <li id="summary-engagement"></li>
+            <li id="summary-engagement" data-component="summary-engagement"></li>
             <!-- En popüler birimler -->
-            <li id="summary-top-units"></li>
+            <li id="summary-top-units" data-component="summary-top-units"></li>
             <!-- Kiosk bilgisi -->
-            <li id="summary-kiosk"></li>
+            <li id="summary-kiosk" data-component="summary-kiosk"></li>
           </ul>
         </div>
+      </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
       </div>
     </section>
 
     <!-- Usage Statistics Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-page="usage-stats">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="bar-chart-3"></i>
@@ -123,19 +283,22 @@
       </div>
       
       <div class="page-content stacked-charts">
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-daily-events">
           <h3 class="chart-title">Günlük Etkinlik Sayıları</h3>
           <div class="chart-wrapper equal" id="daily-events"></div>
         </div>
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-hourly-events">
           <h3 class="chart-title">Saatlik Ziyaret Dağılımı</h3>
           <div class="chart-wrapper equal" id="hourly-events"></div>
         </div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Platform Statistics Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-page="platform-stats">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="monitor-smartphone"></i>
@@ -144,19 +307,22 @@
       </div>
       
       <div class="page-content stacked-charts">
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-os-distribution">
           <h3 class="chart-title">İşletim Sistemi Dağılımı</h3>
           <div class="chart-wrapper equal" id="operating-systems"></div>
         </div>
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-language">
           <h3 class="chart-title">Dil Dağılımı</h3>
           <div class="chart-wrapper equal" id="language-distribution"></div>
         </div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Route Statistics Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-page="route-stats">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="route"></i>
@@ -165,19 +331,22 @@
       </div>
       
       <div class="page-content stacked-charts">
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-from-to">
           <h3 class="chart-title">En Çok Gidilen Yerler ve Nerelerden Gidildiği</h3>
           <div class="chart-wrapper equal" id="from-to-events"></div>
         </div>
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-start-end">
           <h3 class="chart-title">Başlangıç Noktalarına Göre Hedef Dağılımı</h3>
           <div class="chart-wrapper equal" id="start-to-end-events"></div>
         </div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Search Statistics Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-page="search-stats">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="search"></i>
@@ -186,19 +355,22 @@
       </div>
       
       <div class="page-content stacked-charts">
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-top-search">
           <h3 class="chart-title">En Çok Yapılan Aramalar</h3>
           <div class="chart-wrapper equal" id="top-searchs"></div>
         </div>
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-searched-events">
           <h3 class="chart-title">Seçilen Yerler ve Arama Kaynakları</h3>
           <div class="chart-wrapper equal" id="searched-events"></div>
         </div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Category Statistics Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-page="category-stats">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="pie-chart"></i>
@@ -207,19 +379,22 @@
       </div>
       
       <div class="page-content stacked-charts">
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-category-donut">
           <h3 class="chart-title">Kategori Dağılımı</h3>
           <div class="chart-wrapper equal" id="donut-container"></div>
         </div>
-        <div class="chart-section full-height">
+        <div class="chart-section full-height" data-component="chart-category-trend">
           <h3 class="chart-title">Zaman Bazlı Kategori Trendi</h3>
           <div class="chart-wrapper equal" id="area-chart-container"></div>
         </div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Top Units Table Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-component="table-top-units">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="trophy"></i>
@@ -230,10 +405,13 @@
       <div class="page-content">
         <div class="table-section" id="top-units-table-container"></div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Services Table Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-component="table-services">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="briefcase"></i>
@@ -244,10 +422,13 @@
       <div class="page-content">
         <div class="table-section" id="services-container"></div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Floors Table Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-component="table-floors">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="building"></i>
@@ -258,10 +439,13 @@
       <div class="page-content">
         <div class="table-section" id="floors-container"></div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Kiosks Table Page -->
-    <section class="pdf-page">
+    <section class="pdf-page" data-component="table-kiosks">
       <div class="page-header">
         <h2 class="page-title">
           <i data-lucide="monitor"></i>
@@ -272,17 +456,259 @@
       <div class="page-content">
         <div class="table-section" id="kiosks-container"></div>
       </div>
+      <div class="page-footer-logo">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
   </div>
 
   <script>
+    // =====================================================
+    // Component Toggle System
+    // =====================================================
+    
+    const componentConfig = {
+      // Özet Bilgiler Maddeleri
+      'summary-main': { name: 'Ana İstatistikler', default: true, group: 'summary' },
+      'summary-events-breakdown': { name: 'Etkinlik Dağılımı', default: true, group: 'summary' },
+      'summary-busiest-day': { name: 'En Yoğun Gün', default: true, group: 'summary' },
+      'summary-platform': { name: 'Platform Bilgisi', default: true, group: 'summary' },
+      'summary-languages': { name: 'Dil Dağılımı', default: true, group: 'summary' },
+      'summary-total-visits': { name: 'Toplam Ziyaret', default: true, group: 'summary' },
+      'summary-hourly-avg': { name: 'Saatlik Ortalama', default: true, group: 'summary' },
+      'summary-peak-hours': { name: 'Pik Saatler', default: true, group: 'summary' },
+      'summary-engagement': { name: 'Etkileşim', default: true, group: 'summary' },
+      'summary-top-units': { name: 'Popüler Birimler', default: true, group: 'summary' },
+      'summary-kiosk': { name: 'Kiosk Bilgisi', default: true, group: 'summary' },
+      
+      // Grafikler
+      'chart-daily-events': { name: 'Günlük Etkinlik', default: true, page: 'usage-stats' },
+      'chart-hourly-events': { name: 'Saatlik Ziyaret', default: true, page: 'usage-stats' },
+      'chart-os-distribution': { name: 'İşletim Sistemi', default: true, page: 'platform-stats' },
+      'chart-language': { name: 'Dil Dağılımı', default: true, page: 'platform-stats' },
+      'chart-from-to': { name: 'Rota (Hedef)', default: true, page: 'route-stats' },
+      'chart-start-end': { name: 'Rota (Başlangıç)', default: true, page: 'route-stats' },
+      'chart-top-search': { name: 'En Çok Aranan', default: true, page: 'search-stats' },
+      'chart-searched-events': { name: 'Arama Kaynakları', default: true, page: 'search-stats' },
+      'chart-category-donut': { name: 'Kategori Dağılımı', default: true, page: 'category-stats' },
+      'chart-category-trend': { name: 'Kategori Trendi', default: true, page: 'category-stats' },
+      
+      // Tablolar
+      'table-top-units': { name: 'En Aktif Birimler', default: true },
+      'table-services': { name: 'Hizmetler', default: true },
+      'table-floors': { name: 'Katlar', default: true },
+      'table-kiosks': { name: 'Kiosklar', default: true }
+    };
+
+    // Load component visibility from localStorage
+    function loadComponentVisibility() {
+      const saved = localStorage.getItem('pdfComponentVisibility');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          return {};
+        }
+      }
+      return {};
+    }
+
+    // Save component visibility to localStorage
+    function saveComponentVisibility(visibility) {
+      localStorage.setItem('pdfComponentVisibility', JSON.stringify(visibility));
+    }
+
+    // Get current component visibility state
+    function getComponentVisibility() {
+      const saved = loadComponentVisibility();
+      const visibility = {};
+      
+      Object.keys(componentConfig).forEach(key => {
+        visibility[key] = saved.hasOwnProperty(key) ? saved[key] : componentConfig[key].default;
+      });
+      
+      return visibility;
+    }
+
+    // Apply visibility to DOM
+    function applyComponentVisibility(visibility) {
+      Object.entries(visibility).forEach(([componentId, isVisible]) => {
+        const elements = document.querySelectorAll(`[data-component="${componentId}"]`);
+        elements.forEach(el => {
+          if (isVisible) {
+            el.classList.remove('component-hidden');
+          } else {
+            el.classList.add('component-hidden');
+          }
+        });
+      });
+      
+      // Update dynamic layouts
+      updateDynamicLayouts();
+      
+      // Update counter
+      updateComponentCount();
+    }
+
+    // Update dynamic layouts based on visible components
+    function updateDynamicLayouts() {
+      const visibility = getComponentVisibility();
+      
+      // Check pages with paired charts - hide page only if both hidden
+      // Charts do NOT expand - they stay the same size
+      const pairedPages = [
+        { page: 'usage-stats', components: ['chart-daily-events', 'chart-hourly-events'] },
+        { page: 'platform-stats', components: ['chart-os-distribution', 'chart-language'] },
+        { page: 'route-stats', components: ['chart-from-to', 'chart-start-end'] },
+        { page: 'search-stats', components: ['chart-top-search', 'chart-searched-events'] },
+        { page: 'category-stats', components: ['chart-category-donut', 'chart-category-trend'] }
+      ];
+      
+      pairedPages.forEach(({ page, components }) => {
+        const pageEl = document.querySelector(`[data-page="${page}"]`);
+        if (!pageEl) return;
+        
+        const [comp1, comp2] = components;
+        const vis1 = visibility[comp1];
+        const vis2 = visibility[comp2];
+        
+        // Hide page if both components are hidden
+        if (!vis1 && !vis2) {
+          pageEl.classList.add('component-hidden');
+        } else {
+          pageEl.classList.remove('component-hidden');
+        }
+      });
+      
+      // Check if summary page should be hidden (all summary items hidden)
+      const summaryComponents = Object.keys(componentConfig).filter(k => k.startsWith('summary-'));
+      const anySummaryVisible = summaryComponents.some(k => visibility[k]);
+      const summaryPage = document.querySelector('[data-page="summary"]');
+      if (summaryPage) {
+        if (anySummaryVisible) {
+          summaryPage.classList.remove('component-hidden');
+        } else {
+          summaryPage.classList.add('component-hidden');
+        }
+      }
+    }
+
+    // Update component counter
+    function updateComponentCount() {
+      const visibility = getComponentVisibility();
+      const active = Object.values(visibility).filter(v => v).length;
+      const total = Object.keys(componentConfig).length;
+      
+      const activeEl = document.getElementById('activeComponentCount');
+      const totalEl = document.getElementById('totalComponentCount');
+      
+      if (activeEl) activeEl.textContent = active;
+      if (totalEl) totalEl.textContent = total;
+    }
+
+    // Initialize component toggle panel
+    function initComponentTogglePanel() {
+      const panel = document.getElementById('componentTogglePanel');
+      const toggleBtn = document.getElementById('componentToggleBtn');
+      
+      if (!panel) return;
+      
+      // Panel collapse/expand
+      toggleBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.toggle('collapsed');
+        const icon = toggleBtn.querySelector('svg');
+        if (icon) {
+          icon.style.transform = panel.classList.contains('collapsed') ? 'rotate(180deg)' : '';
+        }
+      });
+      
+      // Group toggle buttons (expand/collapse sublists)
+      document.querySelectorAll('.group-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const groupName = btn.dataset.group;
+          const sublist = document.querySelector(`.component-sublist[data-group="${groupName}"]`);
+          if (sublist) {
+            const isExpanded = sublist.classList.contains('expanded');
+            sublist.classList.toggle('expanded');
+            btn.textContent = isExpanded ? '▼' : '▲';
+          }
+        });
+      });
+      
+      // Load and apply saved visibility
+      const visibility = getComponentVisibility();
+      
+      // Set checkbox states
+      document.querySelectorAll('.component-checkbox').forEach(checkbox => {
+        const componentId = checkbox.dataset.component;
+        if (componentId && visibility.hasOwnProperty(componentId)) {
+          checkbox.checked = visibility[componentId];
+        }
+      });
+      
+      // Apply visibility to DOM
+      applyComponentVisibility(visibility);
+      
+      // Checkbox change handlers
+      document.querySelectorAll('.component-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+          const componentId = e.target.dataset.component;
+          const visibility = getComponentVisibility();
+          
+          visibility[componentId] = e.target.checked;
+          
+          saveComponentVisibility(visibility);
+          applyComponentVisibility(visibility);
+        });
+      });
+      
+      // Select all button
+      document.getElementById('componentSelectAll')?.addEventListener('click', () => {
+        const visibility = getComponentVisibility();
+        Object.keys(visibility).forEach(key => {
+          visibility[key] = true;
+        });
+        
+        document.querySelectorAll('.component-checkbox').forEach(cb => {
+          cb.checked = true;
+        });
+        
+        saveComponentVisibility(visibility);
+        applyComponentVisibility(visibility);
+      });
+      
+      // Reset button
+      document.getElementById('componentReset')?.addEventListener('click', () => {
+        localStorage.removeItem('pdfComponentVisibility');
+        
+        document.querySelectorAll('.component-checkbox').forEach(cb => {
+          const componentId = cb.dataset.component;
+          cb.checked = componentConfig[componentId]?.default ?? true;
+        });
+        
+        const visibility = getComponentVisibility();
+        applyComponentVisibility(visibility);
+      });
+    }
+
     // Initialize page
     window.addEventListener("DOMContentLoaded", () => {
       // Initialize Lucide icons
       if (typeof lucide !== 'undefined') {
         lucide.createIcons();
       }
+      
+      // Set dynamic copyright year
+      const copyrightYearEl = document.getElementById('copyrightYear');
+      if (copyrightYearEl) {
+        copyrightYearEl.textContent = new Date().getFullYear();
+      }
+      
+      // Initialize component toggle panel
+      initComponentTogglePanel();
       
       const dateInfo = document.getElementById("dateInfo");
       const selectedRange = localStorage.getItem("selectedRange");

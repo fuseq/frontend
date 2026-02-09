@@ -327,10 +327,60 @@ const ui = {
 };
 
 // =====================================================
+// Data Cache (Session Storage)
+// =====================================================
+
+const dataCache = {
+    CACHE_TTL: 5 * 60 * 1000, // 5 minutes
+    
+    getKey(siteId, startDate, endDate) {
+        return `dashboard_cache_${siteId}_${startDate}_${endDate}`;
+    },
+    
+    get(siteId, startDate, endDate) {
+        try {
+            const key = this.getKey(siteId, startDate, endDate);
+            const cached = sessionStorage.getItem(key);
+            if (!cached) return null;
+            
+            const { data, timestamp } = JSON.parse(cached);
+            const age = Date.now() - timestamp;
+            
+            if (age > this.CACHE_TTL) {
+                sessionStorage.removeItem(key);
+                return null;
+            }
+            
+            console.log(`📦 Cache hit! Age: ${Math.round(age / 1000)}s`);
+            return data;
+        } catch (e) {
+            return null;
+        }
+    },
+    
+    set(siteId, startDate, endDate, data) {
+        try {
+            const key = this.getKey(siteId, startDate, endDate);
+            sessionStorage.setItem(key, JSON.stringify({
+                data,
+                timestamp: Date.now()
+            }));
+        } catch (e) {
+            console.warn('Cache storage failed:', e);
+        }
+    },
+    
+    clear() {
+        const keys = Object.keys(sessionStorage).filter(k => k.startsWith('dashboard_cache_'));
+        keys.forEach(k => sessionStorage.removeItem(k));
+    }
+};
+
+// =====================================================
 // Data Fetching & Processing
 // =====================================================
 
-async function fetchAllData(startDate, endDate, siteId = state.globalSiteId) {
+async function fetchAllData(startDate, endDate, siteId = state.globalSiteId, forceRefresh = false) {
     if (!siteId) {
         utils.showToast('Lütfen önce bir site seçin', 'warning', 'Uyarı');
         return;
@@ -340,6 +390,16 @@ async function fetchAllData(startDate, endDate, siteId = state.globalSiteId) {
     if (startDate && endDate) {
         params.startDate = startDate;
         params.endDate = endDate;
+    }
+
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+        const cachedData = dataCache.get(siteId, startDate, endDate);
+        if (cachedData) {
+            console.log('🚀 Loading from cache...');
+            await renderCachedData(cachedData, params);
+            return;
+        }
     }
 
     utils.setLoading(true);
@@ -367,6 +427,19 @@ async function fetchAllData(startDate, endDate, siteId = state.globalSiteId) {
             api.getHourlyVisits(params),
             api.getCampaigns(params)
         ]);
+        
+        // Store results for caching
+        const cachePayload = {
+            userStats: userStats.status === 'fulfilled' ? userStats.value : null,
+            fromToData: fromToData.status === 'fulfilled' ? fromToData.value : null,
+            searchedData: searchedData.status === 'fulfilled' ? searchedData.value : null,
+            osData: osData.status === 'fulfilled' ? osData.value : null,
+            summaryData: summaryData.status === 'fulfilled' ? summaryData.value : null,
+            languageData: languageData.status === 'fulfilled' ? languageData.value : null,
+            dailyData: dailyData.status === 'fulfilled' ? dailyData.value : null,
+            hourlyData: hourlyData.status === 'fulfilled' ? hourlyData.value : null,
+            campaignData: campaignData.status === 'fulfilled' ? campaignData.value : null
+        };
 
         // Process user statistics
         if (userStats.status === 'fulfilled') {
@@ -437,6 +510,9 @@ async function fetchAllData(startDate, endDate, siteId = state.globalSiteId) {
             fetchDailyCategories(params)
         ]);
 
+        // Save to cache
+        dataCache.set(siteId, startDate, endDate, cachePayload);
+
         utils.showToast('Veriler başarıyla yüklendi', 'success', 'Başarılı');
 
     } catch (error) {
@@ -444,6 +520,84 @@ async function fetchAllData(startDate, endDate, siteId = state.globalSiteId) {
         utils.showToast('Veriler yüklenirken bir hata oluştu', 'error', 'Hata');
     } finally {
         utils.setLoading(false);
+    }
+}
+
+// Render data from cache (no loading screen - instant load)
+async function renderCachedData(cached, params) {
+    try {
+        // Process user statistics
+        if (cached.userStats) {
+            ui.updateStatCards(cached.userStats);
+        }
+
+        // Process from-to events
+        if (cached.fromToData) {
+            renderFromToEvents(cached.fromToData, 'from-to-events');
+            renderFromToEventsByStart(cached.fromToData, 'start-to-end-events');
+        }
+
+        // Process searched events
+        if (cached.searchedData) {
+            renderSearchedEvents(cached.searchedData, 'searched-events');
+            renderTop5SearchedTerms(cached.searchedData, 'top-searchs');
+            await processCategoryData(cached.searchedData, params);
+        }
+
+        // Process OS distribution
+        if (cached.osData) {
+            renderOperatingSystemDistribution(cached.osData, 'operating-systems');
+        }
+
+        // Process summary counts
+        if (cached.summaryData) {
+            const data = cached.summaryData;
+            utils.storage.set('fromTo', data.fromTo);
+            utils.storage.set('searched', data.searched);
+            utils.storage.set('touched', data.touched);
+            utils.storage.set('initialized', data.initialized);
+            utils.storage.set('total', data.total);
+        }
+
+        // Process language distribution
+        if (cached.languageData) {
+            const sortedData = Object.entries(cached.languageData)
+                .sort(([, a], [, b]) => b - a);
+            const topLanguages = Object.fromEntries(sortedData);
+            utils.storage.set('topLanguages', topLanguages);
+            renderLanguageDistribution(topLanguages, 'language-distribution');
+        }
+
+        // Process daily events
+        if (cached.dailyData && Array.isArray(cached.dailyData) && cached.dailyData.length > 0) {
+            const data = cached.dailyData.sort((a, b) => new Date(a.date) - new Date(b.date));
+            processDailyEvents(data);
+            renderDailyEvents(data, 'daily-events');
+        }
+
+        // Process hourly visits
+        if (cached.hourlyData && cached.hourlyData.success) {
+            renderHourlyEvents(cached.hourlyData.hourlyVisits, 'hourly-events');
+            analyzeHourlyVisits(cached.hourlyData.hourlyVisits);
+        }
+
+        // Process campaigns (kiosks)
+        if (cached.campaignData) {
+            processKioskData(cached.campaignData);
+        }
+
+        // Fetch additional data (these are smaller, always fetch fresh)
+        await Promise.allSettled([
+            fetchCombinedUnitData(params),
+            fetchFloorData(params),
+            fetchDailyCategories(params)
+        ]);
+
+    } catch (error) {
+        console.error('Cache render error:', error);
+        // On cache error, force refresh from API
+        const { siteId, startDate, endDate } = params;
+        await fetchAllData(startDate, endDate, siteId, true);
     }
 }
 
@@ -882,7 +1036,8 @@ function setupEventListeners() {
                 ui.setActiveQuickRange(null);
             }
             
-            fetchAllData(startDate, endDate);
+            // Force refresh when user clicks the button
+            fetchAllData(startDate, endDate, state.globalSiteId, true);
         });
     }
 
@@ -1368,5 +1523,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.InmapperDashboard = {
     fetchAllData,
     state,
-    utils
+    utils,
+    dataCache
 };

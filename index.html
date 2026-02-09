@@ -474,6 +474,11 @@
       document.getElementById('siteDropdown').classList.toggle('open');
     });
 
+    // Prevent dropdown from closing when clicking inside it
+    document.getElementById('siteDropdown')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
     document.addEventListener('click', () => {
       document.getElementById('siteDropdown')?.classList.remove('open');
     });

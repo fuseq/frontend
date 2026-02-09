@@ -243,6 +243,76 @@
         </div>
       </div>
 
+      <div class="component-page-group" data-page="yearly-trend">
+        <div class="page-group-header">
+          <span>📅 Yıllık Trend</span>
+          <button class="page-toggle-all" data-action="toggle-page">Tümü</button>
+        </div>
+        <div class="component-list">
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="yearly-trend-chart" checked>
+            <span>Trend Grafiği</span>
+          </label>
+          <!-- Özet Kartlar Group -->
+          <div class="component-group">
+            <label class="component-item group-header">
+              <input type="checkbox" class="component-checkbox group-checkbox" data-component="yearly-stats-cards" data-group="yearly-cards-group" checked>
+              <span>Özet Kartlar</span>
+              <button class="group-expand-btn" data-expanded="false">▶</button>
+            </label>
+            <div class="component-sublist" data-group="yearly-cards-group">
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="yearly-card-total" data-parent="yearly-stats-cards" checked>
+                <span>Toplam</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="yearly-card-cagr" data-parent="yearly-stats-cards" checked>
+                <span>CAGR Büyüme</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="yearly-card-peak" data-parent="yearly-stats-cards" checked>
+                <span>En Yüksek Yıl</span>
+              </label>
+            </div>
+          </div>
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="yearly-stats-table" checked>
+            <span>Detay Tablo</span>
+          </label>
+          <!-- Büyüme Özeti Group -->
+          <div class="component-group">
+            <label class="component-item group-header">
+              <input type="checkbox" class="component-checkbox group-checkbox" data-component="yearly-growth-summary" data-group="yearly-growth-group" checked>
+              <span>Büyüme Özeti</span>
+              <button class="group-expand-btn" data-expanded="false">▶</button>
+            </label>
+            <div class="component-sublist" data-group="yearly-growth-group">
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="yearly-growth-visits" data-parent="yearly-growth-summary" checked>
+                <span>Kullanıcı Değişimi</span>
+              </label>
+              <label class="component-item sub-item">
+                <input type="checkbox" class="component-checkbox" data-component="yearly-growth-interactions" data-parent="yearly-growth-summary" checked>
+                <span>Etkileşim Değişimi</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="component-page-group" data-page="site-performance">
+        <div class="page-group-header">
+          <span>🏢 Site Bazlı Performans</span>
+          <button class="page-toggle-all" data-action="toggle-page">Tümü</button>
+        </div>
+        <div class="component-list">
+          <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="site-performance-table" checked>
+            <span>Performans Tablosu</span>
+          </label>
+        </div>
+      </div>
+
       <div class="component-page-group" data-page="performers">
         <div class="page-group-header">
           <span>🏆 Tercih Edilenler</span>
@@ -316,31 +386,28 @@
     <section class="summary-page cover-page">
       <div class="cover-bg-pattern"></div>
       <div class="cover-content">
-        <div class="cover-header">
-          <div class="inmapper-brand">
-            <span class="brand-in">in</span><span class="brand-mapper">Mapper</span>
-          </div>
+        <div class="cover-top">
+          <img src="assets/inmapper-filigran.png" alt="Inmapper" class="cover-top-logo">
         </div>
         
         <div class="cover-center">
+          <div class="cover-site-badge">
+            <img id="coverSiteLogo" src="" alt="Site Logo" class="cover-site-logo" style="display:none;">
+          </div>
           <div class="cover-icon">
             <i data-lucide="bar-chart-2"></i>
           </div>
           <h1 class="cover-title">Kullanım Özeti</h1>
           <p class="cover-subtitle">İnteraktif Harita Hizmetleri</p>
           <div class="cover-year" id="coverYear">2025</div>
-          <div class="cover-site-badge" id="coverSiteName">
-            <img id="coverSiteLogo" src="assets/inmapper.png" alt="Site Logo" class="cover-site-logo">
-          </div>
         </div>
         
         <div class="cover-footer">
-          <div class="cover-decoration">
-            <div class="deco-line"></div>
-            <img src="assets/inmapper-filigran.png" alt="" class="watermark-logo">
-            <div class="deco-line"></div>
-          </div>
+          <p class="cover-copyright">© <span class="cover-copyright-year"></span> Inmapper. Tüm hakları saklıdır.</p>
         </div>
+      </div>
+      <div class="summary-page-footer">
+        <img src="assets/inmapper.png" alt="Inmapper">
       </div>
     </section>
 
@@ -493,6 +560,9 @@
           </div>
         </div>
       </div>
+      <div class="summary-page-footer">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Monthly Trend Page -->
@@ -509,7 +579,6 @@
           <div class="trend-chart-container">
             <canvas id="monthlyTrendChart"></canvas>
           </div>
-          <p class="chart-footnote">*Etkileşim: Arama, Rota Çizme, Tıklama gibi aksiyonların toplamını tanımlamaktadır.</p>
         </div>
 
         <!-- Monthly Statistics Table -->
@@ -551,6 +620,47 @@
         </div>
 
       </div>
+      <div class="summary-page-footer">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
+    </section>
+
+    <!-- Yearly Trend Page -->
+    <section class="summary-page yearly-trend-page" id="yearlyTrendPage" style="display: none;">
+      <div class="page-content">
+        <div class="page-header-bar">
+          <div class="header-icon" style="background: #8b5cf6;">
+            <i data-lucide="calendar-range"></i>
+          </div>
+          <h2>Yıllık Trend <span id="yearlyTrendRange" style="font-size: 13px; font-weight: 400; color: var(--summary-text-secondary); margin-left: 8px;"></span></h2>
+        </div>
+
+        <!-- Yearly Chart -->
+        <div class="yearly-trend-chart-container" data-component="yearly-trend-chart">
+          <canvas id="yearlyTrendChart"></canvas>
+        </div>
+
+        <!-- Yearly Stats Cards -->
+        <div class="yearly-stats-cards" id="yearlyStatsCards" data-component="yearly-stats-cards">
+          <!-- Will be populated dynamically -->
+        </div>
+
+        <!-- Yearly Detail Table -->
+        <div class="yearly-stats-table-section" data-component="yearly-stats-table">
+          <h3>Yıllık Detay Karşılaştırma</h3>
+          <div class="yearly-stats-table" id="yearlyStatsTable">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Yearly Growth Summary -->
+        <div class="yearly-growth-summary" id="yearlyGrowthSummary" data-component="yearly-growth-summary">
+          <!-- Will be populated dynamically -->
+        </div>
+      </div>
+      <div class="summary-page-footer">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Site Performance Page (for grouped reports) -->
@@ -563,11 +673,14 @@
           <h2>Site Bazlı Performans</h2>
         </div>
 
-        <div class="site-performance-section" id="sitePerformanceSection">
+        <div class="site-performance-section" id="sitePerformanceSection" data-component="site-performance-table">
           <div class="site-performance-table" id="sitePerformanceTable">
             <!-- Will be populated dynamically -->
           </div>
         </div>
+      </div>
+      <div class="summary-page-footer">
+        <img src="assets/inmapper.png" alt="Inmapper">
       </div>
     </section>
 
@@ -657,6 +770,9 @@
           <div class="event-type-legend" id="eventTypeLegend"></div>
         </div>
       </div>
+      <div class="summary-page-footer">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Detailed Statistics Page -->
@@ -694,6 +810,9 @@
         </div>
 
       </div>
+      <div class="summary-page-footer">
+        <img src="assets/inmapper.png" alt="Inmapper">
+      </div>
     </section>
 
     <!-- Country & Language Distribution Page -->
@@ -718,6 +837,9 @@
           </div>
         </div>
 
+      </div>
+      <div class="summary-page-footer">
+        <img src="assets/inmapper.png" alt="Inmapper">
       </div>
     </section>
 
@@ -757,6 +879,11 @@
       if (typeof lucide !== 'undefined') {
         lucide.createIcons();
       }
+      
+      // Set dynamic copyright year
+      document.querySelectorAll('.cover-copyright-year').forEach(el => {
+        el.textContent = new Date().getFullYear();
+      });
       
       // Initialize component toggle panel first
       initComponentTogglePanel();
@@ -838,29 +965,8 @@
     // Update header with selected sites info
     function updateHeaderWithSites(sites) {
       const headerCenter = document.querySelector('.header-center h1');
-      const coverSubtitle = document.getElementById('coverSiteName');
       
-      if (sites.length === 1) {
-        // Single site
-        if (coverSubtitle) {
-          coverSubtitle.textContent = sites[0].name;
-        }
-      } else {
-        // Multiple sites - grouped report
-        const siteNames = sites.map(s => s.name);
-        const shortNames = siteNames.map(n => {
-          // Extract short name (e.g., "TK / IST" -> "IST")
-          const parts = n.split('/');
-          return parts.length > 1 ? parts[parts.length - 1].trim() : n;
-        });
-        
-        if (coverSubtitle) {
-          coverSubtitle.innerHTML = `
-            <span class="grouped-report-badge">Gruplu Rapor</span>
-            <span class="grouped-sites">${shortNames.join(' + ')}</span>
-          `;
-        }
-        
+      if (sites.length > 1) {
         if (headerCenter) {
           headerCenter.innerHTML = `Yıllık Özet Raporu <span class="site-count-badge">${sites.length} Site</span>`;
         }
@@ -910,9 +1016,9 @@
       // Set logo
       if (selectedSites.length > 0) {
         const logoImg = document.getElementById('coverSiteLogo');
-        // For multi-site, try to use first site's logo or fallback to inmapper
         logoImg.src = `assets/${selectedSites[0].id}.png`;
-        logoImg.onerror = () => { logoImg.src = 'assets/inmapper.png'; };
+        logoImg.onload = () => { logoImg.style.display = 'block'; };
+        logoImg.onerror = () => { logoImg.style.display = 'none'; };
       }
 
       // Load data
@@ -964,7 +1070,17 @@
         try {
           const dailyVisitsData = await apiFetch('/daily-visits', params);
           
-          if (dailyVisitsData && typeof dailyVisitsData === 'object') {
+          if (Array.isArray(dailyVisitsData)) {
+            // Backend returns array format: [{date, visits, ...}, ...]
+            dailyVisitsData.forEach(day => {
+              const date = day.date;
+              if (!results.dailyData[date]) {
+                results.dailyData[date] = { visits: 0, interactions: 0 };
+              }
+              results.dailyData[date].visits = day.visits || day.uniqueVisitors || 0;
+            });
+          } else if (dailyVisitsData && typeof dailyVisitsData === 'object') {
+            // Fallback for object format: { 'YYYY-MM-DD': visits, ... }
             Object.entries(dailyVisitsData).forEach(([date, visits]) => {
               if (!results.dailyData[date]) {
                 results.dailyData[date] = { visits: 0, interactions: 0 };
@@ -973,7 +1089,7 @@
             });
           }
         } catch (err) {
-          console.log('Daily visits data not available');
+          console.error('Daily visits error:', err);
         }
 
         // Fallback: if visits is 0, try to get from summary
@@ -1506,6 +1622,18 @@
       localStorage.setItem('annualSummaryData', JSON.stringify(data));
       
       renderAnnualSummary(data);
+
+      // Fetch and render yearly trend data (async, non-blocking)
+      const siteIdsForTrend = selectedSites.map(s => s.id);
+      yearlyTrendSelectedYear = year;
+      fetchYearlyTrendData(siteIdsForTrend, 2022, year).then(yearlyData => {
+        console.log('Yearly trend data:', yearlyData);
+        renderYearlyTrend(yearlyData, String(year));
+      }).catch(error => {
+        console.error('Yearly trend fetch error:', error);
+        const trendPage = document.getElementById('yearlyTrendPage');
+        if (trendPage) trendPage.style.display = 'none';
+      });
       
       // Initialize site filter panel for grouped reports
       if (isGroupedReport && siteDataMap) {
@@ -2429,7 +2557,7 @@
       // Create gradient
       const gradient = ctx.createLinearGradient(0, 0, 0, 200);
       gradient.addColorStop(0, 'rgba(99, 102, 241, 0.9)');
-      gradient.addColorStop(1, 'rgba(99, 102, 241, 0.4)');
+      gradient.addColorStop(1, 'rgba(99, 102, 241, 0.5)');
 
       hourlyChart = new Chart(ctx, {
         type: 'bar',
@@ -2452,22 +2580,25 @@
             legend: { display: false },
             datalabels: {
               anchor: 'end',
-              align: 'top',
-              color: '#475569',
-              font: { size: 7, weight: '600' },
+              align: 'end',
+              color: '#1e293b',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: 4,
+              padding: { top: 2, bottom: 2, left: 4, right: 4 },
+              font: { size: 10, weight: '700' },
               formatter: (value) => value > 0 ? formatNumber(value) : '',
-              offset: -2
+              offset: 4
             }
           },
           layout: {
-            padding: { top: 20 }
+            padding: { top: 25 }
           },
           scales: {
             x: {
               grid: { display: false },
               ticks: { 
                 color: '#94a3b8',
-                font: { size: 8 },
+                font: { size: 10, weight: '500' },
                 maxRotation: 0,
                 callback: function(val, index) {
                   return index % 4 === 0 ? this.getLabelForValue(val) : '';
@@ -2617,22 +2748,25 @@
             legend: { display: false },
             datalabels: {
               anchor: 'end',
-              align: 'top',
-              color: '#475569',
-              font: { size: 10, weight: '700' },
+              align: 'end',
+              color: '#1e293b',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: 4,
+              padding: { top: 2, bottom: 2, left: 6, right: 6 },
+              font: { size: 12, weight: '700' },
               formatter: (value) => formatNumber(value),
-              offset: 2
+              offset: 4
             }
           },
           layout: {
-            padding: { top: 25 }
+            padding: { top: 30 }
           },
           scales: {
             x: {
               grid: { display: false },
               ticks: { 
                 color: '#475569',
-                font: { size: 10, weight: '500' }
+                font: { size: 11, weight: '500' }
               }
             },
             y: {
@@ -2844,7 +2978,7 @@
       const container = document.getElementById('sitePerformanceTable');
       
       if (!page || !section || !container || !siteDataMap) {
-        if (page) page.style.display = 'none';
+        if (page) { page.style.display = 'none'; page.dataset.dataLoaded = ''; }
         if (section) section.style.display = 'none';
         return;
       }
@@ -2863,10 +2997,12 @@
 
       if (sites.length === 0) {
         page.style.display = 'none';
+        page.dataset.dataLoaded = '';
         section.style.display = 'none';
         return;
       }
 
+      page.dataset.dataLoaded = 'true';
       page.style.display = 'block';
       section.style.display = 'block';
 
@@ -3309,6 +3445,9 @@
       
       // Update header to show active sites
       updateHeaderWithSites(activeSites);
+      
+      // Recalculate yearly trend with active site filters
+      recalculateYearlyTrendWithFilters();
     }
 
     // Year selector change
@@ -3316,6 +3455,372 @@
       document.getElementById('coverYear').textContent = this.value;
       loadAnnualData(this.value);
     });
+
+    // =====================================================
+    // Yearly Trend Functions
+    // =====================================================
+
+    let yearlyTrendChart = null;
+    let yearlyTrendCachePerSite = {};  // Per-site cache: { siteId: [yearData, ...] }
+    let yearlyTrendSelectedYear = null;
+
+    async function fetchYearlyTrendData(siteIds, startYear = 2022, endYear = null) {
+      const selectedEndYear = endYear || new Date().getFullYear();
+      yearlyTrendCachePerSite = {};  // Reset cache on fresh fetch
+      
+      for (const siteId of siteIds) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/annual-trend?siteId=${siteId}&startYear=${startYear}&endYear=${selectedEndYear}`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          yearlyTrendCachePerSite[siteId] = data;
+        } catch (error) {
+          console.error(`Yearly trend fetch error for site ${siteId}:`, error);
+          yearlyTrendCachePerSite[siteId] = [];
+        }
+      }
+
+      return aggregateYearlyTrendFromCache(siteIds);
+    }
+
+    // Aggregate yearly trend data from cache for given site IDs
+    function aggregateYearlyTrendFromCache(siteIds) {
+      const allYearlyData = {};
+      
+      for (const siteId of siteIds) {
+        const data = yearlyTrendCachePerSite[siteId];
+        if (!data) continue;
+        
+        data.forEach(yearData => {
+          if (!allYearlyData[yearData.year]) {
+            allYearlyData[yearData.year] = {
+              year: yearData.year,
+              visits: 0,
+              uniqueVisitors: 0,
+              actions: 0,
+              interactions: 0,
+              avgTimeOnSite: 0,
+              bounceRate: 0,
+              siteCount: 0
+            };
+          }
+          const agg = allYearlyData[yearData.year];
+          agg.visits += yearData.visits;
+          agg.uniqueVisitors += yearData.uniqueVisitors;
+          agg.actions += yearData.actions;
+          agg.interactions += yearData.interactions;
+          agg.avgTimeOnSite += yearData.avgTimeOnSite;
+          agg.bounceRate += yearData.bounceRate;
+          agg.siteCount++;
+        });
+      }
+
+      // Calculate averages and sort by year
+      return Object.values(allYearlyData)
+        .sort((a, b) => a.year - b.year)
+        .map(d => ({
+          ...d,
+          avgTimeOnSite: d.siteCount > 0 ? Math.round(d.avgTimeOnSite / d.siteCount) : 0,
+          bounceRate: d.siteCount > 0 ? parseFloat((d.bounceRate / d.siteCount).toFixed(1)) : 0
+        }));
+    }
+
+    // Recalculate yearly trend from cache with currently active site filters
+    function recalculateYearlyTrendWithFilters() {
+      if (Object.keys(yearlyTrendCachePerSite).length === 0) return;
+      
+      const activeSiteIdsArray = Array.from(activeSiteIds);
+      const yearlyData = aggregateYearlyTrendFromCache(activeSiteIdsArray);
+      renderYearlyTrend(yearlyData, String(yearlyTrendSelectedYear || currentYear));
+    }
+
+    function renderYearlyTrend(yearlyData, selectedYear) {
+      const page = document.getElementById('yearlyTrendPage');
+      if (!yearlyData || yearlyData.length < 2) {
+        page.style.display = 'none';
+        page.dataset.dataLoaded = '';
+        return;
+      }
+
+      page.dataset.dataLoaded = 'true';
+      page.style.display = '';
+
+      // Update range text
+      const rangeEl = document.getElementById('yearlyTrendRange');
+      rangeEl.textContent = `(${yearlyData[0].year} - ${yearlyData[yearlyData.length - 1].year})`;
+
+      // Render chart
+      renderYearlyTrendChart(yearlyData, selectedYear);
+      
+      // Render stats cards
+      renderYearlyStatsCards(yearlyData, selectedYear);
+
+      // Render detail table
+      renderYearlyStatsTable(yearlyData, selectedYear);
+
+      // Render growth summary
+      renderYearlyGrowthSummary(yearlyData);
+
+      // Re-init lucide icons
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    }
+
+    function renderYearlyTrendChart(yearlyData, selectedYear) {
+      const canvas = document.getElementById('yearlyTrendChart');
+      const ctx = canvas.getContext('2d');
+
+      // Destroy previous chart
+      if (yearlyTrendChart) {
+        yearlyTrendChart.destroy();
+        yearlyTrendChart = null;
+      }
+
+      const labels = yearlyData.map(d => String(d.year));
+      const visitData = yearlyData.map(d => d.visits);
+      const interactionData = yearlyData.map(d => d.interactions);
+
+      yearlyTrendChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              type: 'line',
+              label: 'Etkileşim',
+              data: interactionData,
+              borderColor: '#ef4444',
+              backgroundColor: 'transparent',
+              borderWidth: 3,
+              tension: 0.4,
+              pointBackgroundColor: '#ef4444',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              order: 1
+            },
+            {
+              type: 'bar',
+              label: 'Kullanıcı',
+              data: visitData,
+              backgroundColor: '#f4a460',
+              borderColor: '#f4a460',
+              borderWidth: 0,
+              borderRadius: 4,
+              order: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 20,
+                font: { size: 12, weight: 600 },
+                color: '#475569'
+              }
+            },
+            tooltip: {
+              callbacks: {
+                title: (items) => `${items[0].label} Yılı`,
+                label: (item) => {
+                  return ` ${item.dataset.label}: ${formatNumber(item.raw)}`;
+                }
+              }
+            },
+            datalabels: {
+              display: false
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                font: { weight: 500, size: 12 },
+                color: '#64748b'
+              }
+            },
+            y: {
+              beginAtZero: true,
+              position: 'left',
+              grid: { color: 'rgba(0, 0, 0, 0.06)' },
+              ticks: {
+                callback: function(value) {
+                  return formatNumber(value);
+                },
+                color: '#64748b'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderYearlyStatsCards(yearlyData, selectedYear) {
+      const container = document.getElementById('yearlyStatsCards');
+      const currentYearData = yearlyData.find(d => d.year === parseInt(selectedYear));
+      
+      if (!currentYearData) {
+        container.innerHTML = '';
+        return;
+      }
+
+      // Calculate total across all years
+      const totalVisitsAllYears = yearlyData.reduce((sum, d) => sum + d.visits, 0);
+      const totalInteractionsAllYears = yearlyData.reduce((sum, d) => sum + d.interactions, 0);
+      
+      // Calculate CAGR (Compound Annual Growth Rate)
+      const firstYear = yearlyData[0];
+      const lastYear = yearlyData[yearlyData.length - 1];
+      const yearDiff = lastYear.year - firstYear.year;
+      let visitCAGR = 0;
+      if (yearDiff > 0 && firstYear.visits > 0) {
+        visitCAGR = ((Math.pow(lastYear.visits / firstYear.visits, 1 / yearDiff) - 1) * 100).toFixed(1);
+      }
+
+      // Find peak year
+      const peakYear = yearlyData.reduce((max, d) => d.visits > max.visits ? d : max, yearlyData[0]);
+
+      container.innerHTML = `
+        <div class="yearly-stat-card" data-component="yearly-card-total">
+          <div class="stat-icon-row">
+            <span class="icon">📊</span>
+            <span class="stat-title">Toplam (${yearlyData.length} Yıl)</span>
+          </div>
+          <div class="stat-main-value">${formatNumber(totalVisitsAllYears)}</div>
+          <div class="stat-sub-text">toplam kullanıcı</div>
+        </div>
+        <div class="yearly-stat-card ${parseFloat(visitCAGR) >= 0 ? 'growth-positive' : 'growth-negative'}" data-component="yearly-card-cagr">
+          <div class="stat-icon-row">
+            <span class="icon">📈</span>
+            <span class="stat-title">Yıllık Ort. Büyüme (CAGR)</span>
+          </div>
+          <div class="stat-main-value">${parseFloat(visitCAGR) >= 0 ? '+' : ''}${visitCAGR}%</div>
+          <div class="stat-sub-text">${firstYear.year} → ${lastYear.year} dönemi</div>
+        </div>
+        <div class="yearly-stat-card" data-component="yearly-card-peak">
+          <div class="stat-icon-row">
+            <span class="icon">🏆</span>
+            <span class="stat-title">En Yüksek Yıl</span>
+          </div>
+          <div class="stat-main-value">${peakYear.year}</div>
+          <div class="stat-sub-text">${formatNumber(peakYear.visits)} kullanıcı</div>
+        </div>
+      `;
+      // Re-apply visibility for dynamically rendered cards
+      applyComponentVisibility(getComponentVisibility());
+    }
+
+    function renderYearlyStatsTable(yearlyData, selectedYear) {
+      const container = document.getElementById('yearlyStatsTable');
+      
+      let tableHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Yıl</th>
+              <th style="text-align: right;">Kullanıcı</th>
+              <th style="text-align: right;">Etkileşim</th>
+              <th style="text-align: right;">Ort. Süre</th>
+              <th style="text-align: right;">Büyüme</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      yearlyData.forEach((yearData, index) => {
+        const isCurrentYear = yearData.year === parseInt(selectedYear);
+        const prevYearData = index > 0 ? yearlyData[index - 1] : null;
+        
+        // Calculate YoY growth
+        let growthPct = null;
+        let growthClass = 'neutral';
+        let growthText = '-';
+        
+        if (prevYearData && prevYearData.visits > 0) {
+          growthPct = ((yearData.visits - prevYearData.visits) / prevYearData.visits * 100).toFixed(1);
+          growthClass = parseFloat(growthPct) >= 0 ? 'positive' : 'negative';
+          growthText = `${parseFloat(growthPct) >= 0 ? '+' : ''}${growthPct}%`;
+        }
+
+        // Format average time
+        const avgMin = Math.floor(yearData.avgTimeOnSite / 60);
+        const avgSec = yearData.avgTimeOnSite % 60;
+        const timeStr = `${avgMin}dk ${avgSec}sn`;
+
+        tableHTML += `
+          <tr class="${isCurrentYear ? 'current-year' : ''}">
+            <td class="year-cell">${yearData.year}</td>
+            <td class="number-cell">${formatNumber(yearData.visits)}</td>
+            <td class="number-cell">${formatNumber(yearData.interactions)}</td>
+            <td class="number-cell">${timeStr}</td>
+            <td class="growth-cell ${growthClass}">${growthText}</td>
+          </tr>
+        `;
+      });
+
+      tableHTML += `</tbody></table>`;
+      container.innerHTML = tableHTML;
+    }
+
+    function renderYearlyGrowthSummary(yearlyData) {
+      const container = document.getElementById('yearlyGrowthSummary');
+      
+      if (yearlyData.length < 2) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const firstYear = yearlyData[0];
+      const lastYear = yearlyData[yearlyData.length - 1];
+
+      // Overall visit growth
+      let visitOverallGrowth = 0;
+      if (firstYear.visits > 0) {
+        visitOverallGrowth = ((lastYear.visits - firstYear.visits) / firstYear.visits * 100).toFixed(1);
+      }
+
+      // Overall interaction growth
+      let interactionOverallGrowth = 0;
+      if (firstYear.interactions > 0) {
+        interactionOverallGrowth = ((lastYear.interactions - firstYear.interactions) / firstYear.interactions * 100).toFixed(1);
+      }
+
+      container.innerHTML = `
+        <div class="yearly-growth-card" data-component="yearly-growth-visits">
+          <div class="growth-title">Toplam Kullanıcı Değişimi</div>
+          <div class="growth-main ${parseFloat(visitOverallGrowth) >= 0 ? 'positive' : 'negative'}">
+            ${parseFloat(visitOverallGrowth) >= 0 ? '+' : ''}${visitOverallGrowth}%
+          </div>
+          <div class="growth-detail">
+            ${formatNumber(firstYear.visits)} (${firstYear.year}) → ${formatNumber(lastYear.visits)} (${lastYear.year})
+          </div>
+        </div>
+        <div class="yearly-growth-card" data-component="yearly-growth-interactions">
+          <div class="growth-title">Toplam Etkileşim Değişimi</div>
+          <div class="growth-main ${parseFloat(interactionOverallGrowth) >= 0 ? 'positive' : 'negative'}">
+            ${parseFloat(interactionOverallGrowth) >= 0 ? '+' : ''}${interactionOverallGrowth}%
+          </div>
+          <div class="growth-detail">
+            ${formatNumber(firstYear.interactions)} (${firstYear.year}) → ${formatNumber(lastYear.interactions)} (${lastYear.year})
+          </div>
+        </div>
+      `;
+      // Re-apply visibility for dynamically rendered cards
+      applyComponentVisibility(getComponentVisibility());
+    }
 
     // =====================================================
     // Component Toggle System
@@ -3369,7 +3874,21 @@
       'monthly-deviation': { page: 'details', name: 'Aylık Sapma', default: true },
       
       // Country Language Page
-      'country-language-map': { page: 'country-language', name: 'Harita & Dil', default: true }
+      'country-language-map': { page: 'country-language', name: 'Harita & Dil', default: true },
+      
+      // Yearly Trend Page
+      'yearly-trend-chart': { page: 'yearly-trend', name: 'Trend Grafiği', default: true },
+      'yearly-stats-cards': { page: 'yearly-trend', name: 'Özet Kartlar', default: true, isGroup: true },
+      'yearly-card-total': { page: 'yearly-trend', name: 'Toplam', default: true, parent: 'yearly-stats-cards' },
+      'yearly-card-cagr': { page: 'yearly-trend', name: 'CAGR', default: true, parent: 'yearly-stats-cards' },
+      'yearly-card-peak': { page: 'yearly-trend', name: 'En Yüksek Yıl', default: true, parent: 'yearly-stats-cards' },
+      'yearly-stats-table': { page: 'yearly-trend', name: 'Detay Tablo', default: true },
+      'yearly-growth-summary': { page: 'yearly-trend', name: 'Büyüme Özeti', default: true, isGroup: true },
+      'yearly-growth-visits': { page: 'yearly-trend', name: 'Kullanıcı Değişimi', default: true, parent: 'yearly-growth-summary' },
+      'yearly-growth-interactions': { page: 'yearly-trend', name: 'Etkileşim Değişimi', default: true, parent: 'yearly-growth-summary' },
+      
+      // Site Performance Page
+      'site-performance-table': { page: 'site-performance', name: 'Performans Tablosu', default: true }
     };
 
     // Load component visibility from localStorage
@@ -3437,6 +3956,26 @@
         }
       }
       
+      // Yearly stats cards - dynamic grid
+      const yearlyStatsCards = document.getElementById('yearlyStatsCards');
+      if (yearlyStatsCards) {
+        const visibleCards = yearlyStatsCards.querySelectorAll('.yearly-stat-card:not(.component-hidden)');
+        const count = visibleCards.length;
+        if (count > 0) {
+          yearlyStatsCards.style.gridTemplateColumns = `repeat(${Math.min(count, 3)}, 1fr)`;
+        }
+      }
+      
+      // Yearly growth summary - dynamic grid
+      const yearlyGrowth = document.getElementById('yearlyGrowthSummary');
+      if (yearlyGrowth) {
+        const visibleGrowth = yearlyGrowth.querySelectorAll('.yearly-growth-card:not(.component-hidden)');
+        const count = visibleGrowth.length;
+        if (count > 0) {
+          yearlyGrowth.style.gridTemplateColumns = `repeat(${Math.min(count, 2)}, 1fr)`;
+        }
+      }
+      
       // Check if entire pages should be hidden
       checkPageVisibility();
     }
@@ -3446,6 +3985,8 @@
       const pageMapping = {
         'highlights': '.highlights-page',
         'trend': '.trend-page',
+        'yearly-trend': '.yearly-trend-page',
+        'site-performance': '.site-performance-page',
         'performers': '.performers-page',
         'details': '.details-page',
         'country-language': '.country-language-page'
@@ -3453,13 +3994,21 @@
       
       const visibility = getComponentVisibility();
       
+      // Pages that are conditionally shown (only when data is available)
+      const conditionalPages = ['yearly-trend', 'site-performance'];
+      
       Object.entries(pageMapping).forEach(([pageKey, pageSelector]) => {
         const page = document.querySelector(pageSelector);
         if (!page) return;
         
-        // Get all components for this page
+        // For conditional pages, don't force show if data hasn't been loaded yet
+        if (conditionalPages.includes(pageKey) && !page.dataset.dataLoaded) {
+          return; // Skip - page visibility is managed by data loading logic
+        }
+        
+        // Get all non-child components for this page
         const pageComponents = Object.entries(componentConfig)
-          .filter(([id, config]) => config.page === pageKey)
+          .filter(([id, config]) => config.page === pageKey && !config.parent)
           .map(([id]) => id);
         
         // Check if any component is visible
