@@ -297,7 +297,9 @@ export const renderFromToEvents = (data, containerId) => {
     const endPoints = {};
 
     data.forEach(item => {
+        if (!item.label || !item.label.includes('->')) return;
         const [start, end] = item.label.split('->');
+        if (!start || !end) return;
         startPoints[start.trim()] = (startPoints[start.trim()] || 0) + item.nb_events;
         endPoints[end.trim()] = (endPoints[end.trim()] || 0) + item.nb_events;
     });
@@ -311,8 +313,9 @@ export const renderFromToEvents = (data, containerId) => {
         label: start,
         data: topEndPoints.map(([end]) => 
             data.filter(item => {
+                if (!item.label || !item.label.includes('->')) return false;
                 const [s, e] = item.label.split('->');
-                return s.trim() === start && e.trim() === end;
+                return s && e && s.trim() === start && e.trim() === end;
             }).reduce((sum, item) => sum + item.nb_events, 0)
         ),
         backgroundColor: chartColors[i],
@@ -405,7 +408,9 @@ export const renderFromToEventsByStart = (data, containerId) => {
     const endPoints = {};
 
     data.forEach(item => {
+        if (!item.label || !item.label.includes('->')) return;
         const [start, end] = item.label.split('->');
+        if (!start || !end) return;
         startPoints[start.trim()] = (startPoints[start.trim()] || 0) + item.nb_events;
         endPoints[end.trim()] = (endPoints[end.trim()] || 0) + item.nb_events;
     });
@@ -419,8 +424,9 @@ export const renderFromToEventsByStart = (data, containerId) => {
         label: end,
         data: topStartPoints.map(([start]) =>
             data.filter(item => {
+                if (!item.label || !item.label.includes('->')) return false;
                 const [s, e] = item.label.split('->');
-                return e.trim() === end && s.trim() === start;
+                return s && e && e.trim() === end && s.trim() === start;
             }).reduce((sum, item) => sum + item.nb_events, 0)
         ),
         backgroundColor: chartColors[i],
@@ -512,8 +518,10 @@ export const renderSearchedEvents = (data, containerId) => {
     const placeMap = {};
 
     data.forEach(item => {
-        let [searchTerm, selectedPlace] = item.label.split('->').map(str => str.trim());
+        if (!item.label || !item.label.includes('->')) return;
+        let [searchTerm, selectedPlace] = item.label.split('->').map(str => str ? str.trim() : '');
         if (!searchTerm) searchTerm = "Doğrudan Seçim";
+        if (!selectedPlace) return;
         if (!placeMap[selectedPlace]) placeMap[selectedPlace] = {};
         placeMap[selectedPlace][searchTerm] = (placeMap[selectedPlace][searchTerm] || 0) + item.nb_events;
     });
