@@ -1215,12 +1215,19 @@
 
         if (Array.isArray(routeData)) {
           routeData.forEach(item => {
-            const parts = item.label?.split('->');
-            if (parts && parts.length > 1) {
-              const destination = normalizeName(parts[1].trim());
-              if (!destination.includes('Direct?')) {
-                routeDestinations[destination] = (routeDestinations[destination] || 0) + (item.nb_events || 0);
-              }
+            const rawLabel = item.label?.trim() || '';
+            const parts = rawLabel.split('->');
+            const destination = parts.length > 1 ? normalizeName(parts[1].trim()) : normalizeName(rawLabel);
+            if (destination && !destination.includes('Direct?')) {
+              routeDestinations[destination] = (routeDestinations[destination] || 0) + (item.nb_events || 0);
+            }
+          });
+        } else if (routeData && typeof routeData === 'object' && !Array.isArray(routeData)) {
+          // Obje formatı: { "D": 73, "Gratis": 239, ... }
+          Object.entries(routeData).forEach(([dest, count]) => {
+            const key = normalizeName(String(dest).trim());
+            if (key && !key.includes('Direct?')) {
+              routeDestinations[key] = (routeDestinations[key] || 0) + (count || 0);
             }
           });
         }
@@ -1682,14 +1689,15 @@
       target.totalPlatforms.ios += source.totalPlatforms.ios;
       target.totalPlatforms.web += source.totalPlatforms.web;
       
-      // Search terms
+      // Search terms & Route destinations (D/R -> D&R birleştirmesi)
+      const norm = (x) => ((x === 'D' || x === 'R') ? 'D&R' : x);
       Object.entries(source.allSearchTerms).forEach(([term, count]) => {
-        target.allSearchTerms[term] = (target.allSearchTerms[term] || 0) + count;
+        const key = norm(term);
+        target.allSearchTerms[key] = (target.allSearchTerms[key] || 0) + count;
       });
-      
-      // Route destinations
       Object.entries(source.allRouteDestinations).forEach(([dest, count]) => {
-        target.allRouteDestinations[dest] = (target.allRouteDestinations[dest] || 0) + count;
+        const key = norm(dest);
+        target.allRouteDestinations[key] = (target.allRouteDestinations[key] || 0) + count;
       });
       
       // Event summary
@@ -1850,14 +1858,15 @@
           dataCollector.totalPlatforms.ios += result.platforms.ios;
           dataCollector.totalPlatforms.web += result.platforms.web;
           
-          // Search data
+          // Search & Route data (D/R -> D&R)
+          const norm = (x) => ((x === 'D' || x === 'R') ? 'D&R' : x);
           Object.entries(result.searchTerms).forEach(([term, count]) => {
-            dataCollector.allSearchTerms[term] = (dataCollector.allSearchTerms[term] || 0) + count;
+            const key = norm(term);
+            dataCollector.allSearchTerms[key] = (dataCollector.allSearchTerms[key] || 0) + count;
           });
-          
-          // Route data
           Object.entries(result.routeDestinations).forEach(([dest, count]) => {
-            dataCollector.allRouteDestinations[dest] = (dataCollector.allRouteDestinations[dest] || 0) + count;
+            const key = norm(dest);
+            dataCollector.allRouteDestinations[key] = (dataCollector.allRouteDestinations[key] || 0) + count;
           });
 
           // Event summary

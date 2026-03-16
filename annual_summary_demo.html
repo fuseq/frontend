@@ -1269,6 +1269,7 @@
       };
 
       const searchTerms = {};
+      const normalizeName = (n) => ((n === 'D' || n === 'R') ? 'D&R' : n);
 
       try {
         const searchData = await apiFetch('/events/searched', params);
@@ -1277,7 +1278,7 @@
           searchData.forEach(item => {
             const parts = item.label?.split('->');
             if (parts && parts.length > 1) {
-              const name = parts[1].trim();
+              const name = normalizeName(parts[1].trim());
               if (!name.includes('Direct?')) {
                 searchTerms[name] = (searchTerms[name] || 0) + (item.nb_events || 0);
               }
@@ -1303,18 +1304,18 @@
       };
 
       const routeDestinations = {};
+      const normalizeName = (n) => ((n === 'D' || n === 'R') ? 'D&R' : n);
 
       try {
         const routeData = await apiFetch('/events/from-to-names', params);
 
         if (Array.isArray(routeData)) {
           routeData.forEach(item => {
-            const parts = item.label?.split('->');
-            if (parts && parts.length > 1) {
-              const destination = parts[1].trim();
-              if (!destination.includes('Direct?')) {
-                routeDestinations[destination] = (routeDestinations[destination] || 0) + (item.nb_events || 0);
-              }
+            const rawLabel = item.label?.trim() || '';
+            const parts = rawLabel.split('->');
+            const destination = parts.length > 1 ? normalizeName(parts[1].trim()) : normalizeName(rawLabel);
+            if (destination && !destination.includes('Direct?')) {
+              routeDestinations[destination] = (routeDestinations[destination] || 0) + (item.nb_events || 0);
             }
           });
         }
@@ -1725,14 +1726,15 @@
       target.totalPlatforms.ios += source.totalPlatforms.ios;
       target.totalPlatforms.web += source.totalPlatforms.web;
       
-      // Search terms
+      // Search terms & Route destinations (D/R -> D&R)
+      const norm = (x) => ((x === 'D' || x === 'R') ? 'D&R' : x);
       Object.entries(source.allSearchTerms).forEach(([term, count]) => {
-        target.allSearchTerms[term] = (target.allSearchTerms[term] || 0) + count;
+        const key = norm(term);
+        target.allSearchTerms[key] = (target.allSearchTerms[key] || 0) + count;
       });
-      
-      // Route destinations
       Object.entries(source.allRouteDestinations).forEach(([dest, count]) => {
-        target.allRouteDestinations[dest] = (target.allRouteDestinations[dest] || 0) + count;
+        const key = norm(dest);
+        target.allRouteDestinations[key] = (target.allRouteDestinations[key] || 0) + count;
       });
       
       // Event summary
@@ -1893,14 +1895,15 @@
           dataCollector.totalPlatforms.ios += result.platforms.ios;
           dataCollector.totalPlatforms.web += result.platforms.web;
           
-          // Search data
+          // Search & Route data (D/R -> D&R)
+          const norm = (x) => ((x === 'D' || x === 'R') ? 'D&R' : x);
           Object.entries(result.searchTerms).forEach(([term, count]) => {
-            dataCollector.allSearchTerms[term] = (dataCollector.allSearchTerms[term] || 0) + count;
+            const key = norm(term);
+            dataCollector.allSearchTerms[key] = (dataCollector.allSearchTerms[key] || 0) + count;
           });
-          
-          // Route data
           Object.entries(result.routeDestinations).forEach(([dest, count]) => {
-            dataCollector.allRouteDestinations[dest] = (dataCollector.allRouteDestinations[dest] || 0) + count;
+            const key = norm(dest);
+            dataCollector.allRouteDestinations[key] = (dataCollector.allRouteDestinations[key] || 0) + count;
           });
 
           // Event summary
@@ -2342,6 +2345,10 @@
       });
     }
 
+    // URL'de & encode edilmediğinde "D&R" -> "D" olarak kaydedilir. Gösterim düzeltmesi.
+    const LABEL_CORRECTIONS = { 'D': 'D&R', 'R': 'D&R' };
+    function correctLabel(name) { return LABEL_CORRECTIONS[name] || name; }
+
     // Render top list
     function renderTopList(containerId, items) {
       const container = document.getElementById(containerId);
@@ -2357,7 +2364,7 @@
         <div class="performer-item">
           <span class="performer-rank rank-${index + 1}">${index + 1}</span>
           <div class="performer-name-wrapper">
-            <span class="performer-name">${item.name}</span>
+            <span class="performer-name">${correctLabel(item.name)}</span>
             ${item.siteName ? `<small class="performer-site">${getShortSiteName(item.siteName)}</small>` : ''}
           </div>
           <span class="performer-count">${formatNumber(item.count)}</span>
