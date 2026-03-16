@@ -4,6 +4,7 @@
  */
 
 import {
+    normalizePlaceName,
     renderFromToEvents,
     renderFromToEventsByStart,
     renderSearchedEvents,
@@ -606,7 +607,7 @@ async function processCategoryData(searchedData, params) {
     try {
         const titles = searchedData
             .filter(item => item.label.includes('->'))
-            .map(item => item.label.split('->')[1].trim());
+            .map(item => normalizePlaceName(item.label.split('->')[1]));
 
         const jsonPath = `./assets/${state.globalSiteId}.json`;
         const categoryData = await categorizeTitlesWithJson(titles, jsonPath);
@@ -643,19 +644,21 @@ async function fetchCombinedUnitData(params) {
         searchedData.forEach(item => {
             const parts = item.label.split('->');
             if (parts.length > 1) {
-                const name = parts[1].trim();
+                const name = normalizePlaceName(parts[1]);
                 mergedMap[name] = (mergedMap[name] || 0) + (item.nb_events || 0);
             }
         });
 
         // Add touched data
         for (const [title, count] of Object.entries(touchedData)) {
-            mergedMap[title] = (mergedMap[title] || 0) + count;
+            const key = normalizePlaceName(title);
+            mergedMap[key] = (mergedMap[key] || 0) + count;
         }
 
         // Add initialized data
         for (const [title, count] of Object.entries(initializedData)) {
-            mergedMap[title] = (mergedMap[title] || 0) + count;
+            const key = normalizePlaceName(title);
+            mergedMap[key] = (mergedMap[key] || 0) + count;
         }
 
         const totalEvents = Object.values(mergedMap).reduce((sum, count) => sum + count, 0);
@@ -699,7 +702,7 @@ async function fetchFloorData(params) {
         const titlesWithCounts = searchedData
             .filter(item => item.label.includes('->'))
             .map(item => ({
-                eventName: item.label.split('->')[1].trim(),
+                eventName: normalizePlaceName(item.label.split('->')[1]),
                 nbEvents: item.nb_events
             }));
 

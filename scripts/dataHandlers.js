@@ -3,6 +3,13 @@
  * Modern chart rendering with beautiful styling
  */
 
+// URL'de toTitle=D&R encode edilmediğinde Matomo "D" olarak kaydeder. Düzeltme için:
+export function normalizePlaceName(name) {
+    if (!name) return name;
+    const n = String(name).trim();
+    return (n === 'D' || n === 'R') ? 'D&R' : n;
+}
+
 // =====================================================
 // Chart Theme Configuration
 // =====================================================
@@ -300,8 +307,10 @@ export const renderFromToEvents = (data, containerId) => {
         if (!item.label || !item.label.includes('->')) return;
         const [start, end] = item.label.split('->');
         if (!start || !end) return;
-        startPoints[start.trim()] = (startPoints[start.trim()] || 0) + item.nb_events;
-        endPoints[end.trim()] = (endPoints[end.trim()] || 0) + item.nb_events;
+        const s = normalizePlaceName(start.trim());
+        const e = normalizePlaceName(end.trim());
+        startPoints[s] = (startPoints[s] || 0) + item.nb_events;
+        endPoints[e] = (endPoints[e] || 0) + item.nb_events;
     });
 
     const topStartPoints = Object.entries(startPoints).sort((a, b) => b[1] - a[1]);
@@ -315,7 +324,7 @@ export const renderFromToEvents = (data, containerId) => {
             data.filter(item => {
                 if (!item.label || !item.label.includes('->')) return false;
                 const [s, e] = item.label.split('->');
-                return s && e && s.trim() === start && e.trim() === end;
+                return s && e && normalizePlaceName(s.trim()) === start && normalizePlaceName(e.trim()) === end;
             }).reduce((sum, item) => sum + item.nb_events, 0)
         ),
         backgroundColor: chartColors[i],
@@ -411,8 +420,10 @@ export const renderFromToEventsByStart = (data, containerId) => {
         if (!item.label || !item.label.includes('->')) return;
         const [start, end] = item.label.split('->');
         if (!start || !end) return;
-        startPoints[start.trim()] = (startPoints[start.trim()] || 0) + item.nb_events;
-        endPoints[end.trim()] = (endPoints[end.trim()] || 0) + item.nb_events;
+        const s = normalizePlaceName(start.trim());
+        const e = normalizePlaceName(end.trim());
+        startPoints[s] = (startPoints[s] || 0) + item.nb_events;
+        endPoints[e] = (endPoints[e] || 0) + item.nb_events;
     });
 
     const topStartPoints = Object.entries(startPoints).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -426,7 +437,7 @@ export const renderFromToEventsByStart = (data, containerId) => {
             data.filter(item => {
                 if (!item.label || !item.label.includes('->')) return false;
                 const [s, e] = item.label.split('->');
-                return s && e && e.trim() === end && s.trim() === start;
+                return s && e && normalizePlaceName(e.trim()) === end && normalizePlaceName(s.trim()) === start;
             }).reduce((sum, item) => sum + item.nb_events, 0)
         ),
         backgroundColor: chartColors[i],
@@ -522,8 +533,9 @@ export const renderSearchedEvents = (data, containerId) => {
         let [searchTerm, selectedPlace] = item.label.split('->').map(str => str ? str.trim() : '');
         if (!searchTerm) searchTerm = "Doğrudan Seçim";
         if (!selectedPlace) return;
-        if (!placeMap[selectedPlace]) placeMap[selectedPlace] = {};
-        placeMap[selectedPlace][searchTerm] = (placeMap[selectedPlace][searchTerm] || 0) + item.nb_events;
+        const place = normalizePlaceName(selectedPlace);
+        if (!placeMap[place]) placeMap[place] = {};
+        placeMap[place][searchTerm] = (placeMap[place][searchTerm] || 0) + item.nb_events;
     });
 
     const placeTotals = Object.entries(placeMap).map(([place, terms]) => ({
@@ -1549,8 +1561,9 @@ export async function summarizeTopServicesByCategory(titlesWithCounts, jsonFileP
             }
         });
 
-        // Name corrections
+        // Name corrections (D/R: URL'de & encode edilmediğinde Matomo "D" kaydeder)
         const corrections = {
+            "D": "D&R", "R": "D&R",
             "Car Park (Hall 7-8)": "Otopark (Hall 7-8)",
             "Entrance (Hall 11A)": "Giriş (Hall 11A)",
             "Entrance (Hall 11)": "Giriş (Hall 11)",
