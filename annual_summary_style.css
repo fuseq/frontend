@@ -1922,6 +1922,166 @@ body {
   text-align: right;
 }
 
+/* =====================================================
+   App / Web Distribution
+   ===================================================== */
+
+.app-web-section {
+  background: #ffffff;
+  border: 1px solid var(--summary-border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-top: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.app-web-section h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--summary-text);
+  margin-bottom: 12px;
+}
+
+.app-web-overview {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.app-web-donut-wrap {
+  width: 130px;
+  height: 130px;
+  flex-shrink: 0;
+}
+
+.app-web-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.aw-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.aw-stat:last-child { border-bottom: none; }
+
+.aw-stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--summary-text-secondary);
+}
+
+.aw-stat-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--summary-text);
+}
+
+.aw-stat-value small {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--summary-text-secondary);
+}
+
+.aw-stat.app-color .aw-stat-label { color: #8b5cf6; }
+.aw-stat.web-color .aw-stat-label { color: #3b82f6; }
+.aw-stat.other-color .aw-stat-label { color: #94a3b8; }
+
+.app-web-detail-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.app-web-panel {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--summary-text);
+}
+
+.panel-header svg {
+  width: 16px;
+  height: 16px;
+}
+
+.app-panel .panel-header svg { color: #8b5cf6; }
+.web-panel .panel-header svg { color: #3b82f6; }
+
+.panel-total {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.app-panel .panel-total { color: #8b5cf6; }
+.web-panel .panel-total { color: #3b82f6; }
+
+.panel-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aw-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aw-bar-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--summary-text-secondary);
+  min-width: 52px;
+}
+
+.aw-bar-track {
+  flex: 1;
+  height: 7px;
+  background: rgba(0,0,0,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.aw-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.aw-bar-value {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--summary-text);
+  min-width: 40px;
+  text-align: right;
+}
+
+.no-data-small {
+  font-size: 10px;
+  color: var(--summary-text-secondary);
+  text-align: center;
+  display: block;
+  padding: 8px 0;
+}
+
 
 /* =====================================================
    Loading Overlay
@@ -2701,6 +2861,10 @@ body {
   }
 
   /* New components print styles */
+  .app-web-section {
+    break-inside: avoid;
+  }
+
   .event-type-section {
     break-inside: avoid;
   }

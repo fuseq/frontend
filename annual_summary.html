@@ -332,6 +332,10 @@
             <span>Platform Dağılımı</span>
           </label>
           <label class="component-item">
+            <input type="checkbox" class="component-checkbox" data-component="app-web-distribution" checked>
+            <span>App/Web Dağılımı</span>
+          </label>
+          <label class="component-item">
             <input type="checkbox" class="component-checkbox" data-component="event-type-distribution" checked>
             <span>Etkinlik Türü</span>
           </label>
@@ -761,6 +765,37 @@
           </div>
         </div>
 
+        <!-- App / Web Distribution -->
+        <div class="app-web-section" data-component="app-web-distribution">
+          <h3>App / Web Dağılımı</h3>
+          <div class="app-web-container" id="appWebContainer">
+            <div class="app-web-overview">
+              <div class="app-web-donut-wrap">
+                <canvas id="appWebDonutChart" width="200" height="200"></canvas>
+              </div>
+              <div class="app-web-summary" id="appWebSummary"></div>
+            </div>
+            <div class="app-web-detail-panels">
+              <div class="app-web-panel app-panel">
+                <div class="panel-header">
+                  <i data-lucide="smartphone"></i>
+                  <span>App</span>
+                  <span class="panel-total" id="appTotal">0</span>
+                </div>
+                <div class="panel-bars" id="appBars"></div>
+              </div>
+              <div class="app-web-panel web-panel">
+                <div class="panel-header">
+                  <i data-lucide="globe"></i>
+                  <span>Web</span>
+                  <span class="panel-total" id="webTotal">0</span>
+                </div>
+                <div class="panel-bars" id="webBars"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Event Type Distribution -->
         <div class="event-type-section" data-component="event-type-distribution">
           <h3>Etkinlik Türü Dağılımı</h3>
@@ -850,7 +885,7 @@
     // =====================================================
     // Configuration
     // =====================================================
-    const API_BASE_URL = 'https://matomo-analytics-backend.isohtel.com.tr/api';
+    const API_BASE_URL = 'http://localhost:3000/api'; // TEST - deploy öncesi geri al
     
     // =====================================================
     // State
@@ -949,6 +984,10 @@
         monthlyInteractions: new Array(12).fill(0),
         allDailyData: {},
         totalPlatforms: { android: 0, ios: 0, web: 0 },
+        appWebData: {
+          app: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 },
+          web: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 }
+        },
         allSearchTerms: {},
         allRouteDestinations: {},
         eventSummary: { fromTo: 0, searched: 0, touched: 0, initialized: 0 },
@@ -1407,6 +1446,30 @@
       return countries;
     }
 
+    async function fetchMonthAppWebData(siteId, year, month) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      const params = {
+        siteId: siteId,
+        startDate: formatDateParam(startDate),
+        endDate: formatDateParam(endDate)
+      };
+
+      try {
+        const data = await apiFetch('/app-web-distribution', params);
+        if (data && data.app && data.web) {
+          return data;
+        }
+      } catch (error) {
+        console.error(`Error fetching app/web data for month ${month + 1}:`, error);
+      }
+
+      return {
+        app: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 },
+        web: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 }
+      };
+    }
 
     // Load annual data - fetch month by month with parallel requests
     async function loadAnnualData(year) {
@@ -1623,6 +1686,8 @@
           .sort((a, b) => b[1].visits - a[1].visits)
           .slice(0, 10)
           .map(([country, data]) => ({ country, visits: data.visits, code: data.code })),
+        // App/Web distribution
+        appWebData: aggregatedData.appWebData,
         // Grouped report comparisons
         siteComparisons: siteComparisons,
         siteDataMap: isGroupedReport ? siteDataMap : null
@@ -1733,6 +1798,15 @@
         }
         target.allCountries[country].visits += data.visits;
       });
+
+      // App/Web distribution
+      if (source.appWebData) {
+        ['app', 'web'].forEach(type => {
+          ['ios', 'android', 'desktop', 'other', 'total'].forEach(key => {
+            target.appWebData[type][key] += (source.appWebData[type]?.[key] || 0);
+          });
+        });
+      }
     }
 
     // Calculate site-by-site comparisons for grouped reports
@@ -1903,6 +1977,15 @@
             dataCollector.allCountries[country].visits += data.visits;
           });
 
+          // App/Web distribution
+          if (result.appWebData) {
+            ['app', 'web'].forEach(type => {
+              ['ios', 'android', 'desktop', 'other', 'total'].forEach(key => {
+                dataCollector.appWebData[type][key] += (result.appWebData[type]?.[key] || 0);
+              });
+            });
+          }
+
         } catch (error) {
           console.error(`Error processing month ${month + 1} for year ${year}:`, error);
         }
@@ -1940,7 +2023,11 @@
               hourlyData: new Array(24).fill(0),
               userStats: { avgTimeOnPage: 0, bounceRate: 0 },
               dayOfWeekData: new Array(7).fill(0),
-              countryData: {}
+              countryData: {},
+              appWebData: {
+                app: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 },
+                web: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 }
+              }
             };
           }
         }
@@ -1961,14 +2048,20 @@
       // Small delay between groups
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Group 2: Secondary data (5 requests)
-      const [searchData, routeData, eventSummary, langData, countryData] = await Promise.allSettled([
+      // Group 2: Secondary data (6 requests)
+      const [searchData, routeData, eventSummary, langData, countryData, appWebData] = await Promise.allSettled([
         fetchMonthSearchData(siteId, year, month),
         fetchMonthRouteData(siteId, year, month),
         fetchMonthEventSummary(siteId, year, month),
         fetchMonthLanguageData(siteId, year, month),
-        fetchMonthCountryData(siteId, year, month)
+        fetchMonthCountryData(siteId, year, month),
+        fetchMonthAppWebData(siteId, year, month)
       ]);
+
+      const emptyAppWeb = {
+        app: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 },
+        web: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 }
+      };
 
       return {
         visits: monthData.status === 'fulfilled' ? monthData.value.visits : 0,
@@ -1982,7 +2075,8 @@
         hourlyData: hourlyData.status === 'fulfilled' ? hourlyData.value : new Array(24).fill(0),
         userStats: userStats.status === 'fulfilled' ? userStats.value : { avgTimeOnPage: 0, bounceRate: 0 },
         dayOfWeekData: dayOfWeekData.status === 'fulfilled' ? dayOfWeekData.value : new Array(7).fill(0),
-        countryData: countryData.status === 'fulfilled' ? countryData.value : {}
+        countryData: countryData.status === 'fulfilled' ? countryData.value : {},
+        appWebData: appWebData.status === 'fulfilled' ? appWebData.value : emptyAppWeb
       };
     }
 
@@ -2013,11 +2107,15 @@
         visitGrowth: 0,
         interactionGrowth: 0,
         prevYearVisits: 0,
-        prevYearInteractions: 0
+        prevYearInteractions: 0,
+        appWebData: {
+          app: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 },
+          web: { ios: 0, android: 0, desktop: 0, other: 0, total: 0 }
+        }
       };
-      
+
       // Show warning message - site not selected
-      
+
       renderAnnualSummary(emptyData);
     }
 
@@ -2162,8 +2260,22 @@
       renderTopList('topSearchedList', data.topSearched || []);
       renderTopList('topRoutedList', data.topRouted || []);
 
-      // Platform bars
-      renderPlatformBars(data.platforms);
+      // App/Web vs Platform: show one or the other
+      const hasAppWebData = data.appWebData &&
+        ((data.appWebData.app?.total || 0) + (data.appWebData.web?.total || 0)) > 0;
+
+      const platformEl = document.querySelector('[data-component="platform-distribution"]');
+      const appWebEl = document.querySelector('[data-component="app-web-distribution"]');
+
+      if (hasAppWebData) {
+        if (platformEl) platformEl.classList.add('component-hidden');
+        if (appWebEl) appWebEl.classList.remove('component-hidden');
+        renderAppWebDistribution(data.appWebData, data.totalVisits || 0);
+      } else {
+        if (platformEl) platformEl.classList.remove('component-hidden');
+        if (appWebEl) appWebEl.classList.add('component-hidden');
+        renderPlatformBars(data.platforms);
+      }
 
       // New detail sections
       renderEventTypeChart(data.eventSummary || { fromTo: 0, searched: 0, touched: 0, initialized: 0 });
@@ -2362,6 +2474,129 @@
 
       webBar.querySelector('.platform-fill').style.width = webPercent + '%';
       webBar.querySelector('.platform-value').textContent = formatNumber(web);
+    }
+
+    // Render App/Web Distribution
+    let appWebDonutChart = null;
+
+    function renderAppWebDistribution(appWebData, totalVisits) {
+      if (!appWebData) return;
+
+      const app = appWebData.app || {};
+      const web = appWebData.web || {};
+      const appTotal = app.total || (app.ios + app.android + (app.desktop || 0) + (app.other || 0)) || 0;
+      const webTotal = web.total || (web.ios + web.android + (web.desktop || 0) + (web.other || 0)) || 0;
+      const segmentTotal = appTotal + webTotal;
+      const otherTotal = Math.max(0, (totalVisits || 0) - segmentTotal);
+      const grandTotal = totalVisits || segmentTotal;
+
+      if (grandTotal === 0) {
+        const container = document.getElementById('appWebContainer');
+        if (container) container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:2rem;">Bu site için App/Web segment verisi bulunamadı.</p>';
+        return;
+      }
+
+      const appPct = ((appTotal / grandTotal) * 100).toFixed(1);
+      const webPct = ((webTotal / grandTotal) * 100).toFixed(1);
+      const otherPct = ((otherTotal / grandTotal) * 100).toFixed(1);
+      const ratio = appTotal > 0 ? (webTotal / appTotal).toFixed(1) : '∞';
+
+      // Summary
+      const summaryEl = document.getElementById('appWebSummary');
+      if (summaryEl) {
+        let html = `
+          <div class="aw-stat"><span class="aw-stat-label">Toplam Ziyaret</span><span class="aw-stat-value">${formatNumber(grandTotal)}</span></div>
+          <div class="aw-stat app-color"><span class="aw-stat-label">App</span><span class="aw-stat-value">${formatNumber(appTotal)} <small>(${appPct}%)</small></span></div>
+          <div class="aw-stat web-color"><span class="aw-stat-label">Web</span><span class="aw-stat-value">${formatNumber(webTotal)} <small>(${webPct}%)</small></span></div>`;
+        if (otherTotal > 0) {
+          html += `<div class="aw-stat other-color"><span class="aw-stat-label">Diğer</span><span class="aw-stat-value">${formatNumber(otherTotal)} <small>(${otherPct}%)</small></span></div>`;
+        }
+        html += `<div class="aw-stat"><span class="aw-stat-label">Web/App Oranı</span><span class="aw-stat-value">${ratio}x</span></div>`;
+        summaryEl.innerHTML = html;
+      }
+
+      // Donut chart
+      const canvas = document.getElementById('appWebDonutChart');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (appWebDonutChart) appWebDonutChart.destroy();
+
+        const chartLabels = ['App', 'Web'];
+        const chartData = [appTotal, webTotal];
+        const chartColors = ['#8b5cf6', '#3b82f6'];
+        if (otherTotal > 0) {
+          chartLabels.push('Diğer');
+          chartData.push(otherTotal);
+          chartColors.push('#94a3b8');
+        }
+
+        appWebDonutChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: chartLabels,
+            datasets: [{
+              data: chartData,
+              backgroundColor: chartColors,
+              borderWidth: 0,
+              hoverOffset: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '62%',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    const val = ctx.parsed;
+                    const pct = ((val / grandTotal) * 100).toFixed(1);
+                    return `${ctx.label}: ${formatNumber(val)} (${pct}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Panel bars helper
+      function renderPanelBars(containerId, data, total) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+
+        const items = [
+          { label: 'iOS', value: data.ios || 0, color: '#636e88' },
+          { label: 'Android', value: data.android || 0, color: '#a3e635' },
+          { label: 'Desktop', value: data.desktop || 0, color: '#38bdf8' }
+        ].filter(i => i.value > 0);
+
+        if (items.length === 0) {
+          el.innerHTML = '<span class="no-data-small">Veri yok</span>';
+          return;
+        }
+
+        el.innerHTML = items.map(item => {
+          const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
+          return `
+            <div class="aw-bar-row">
+              <span class="aw-bar-label">${item.label}</span>
+              <div class="aw-bar-track">
+                <div class="aw-bar-fill" style="width:${pct}%;background:${item.color}"></div>
+              </div>
+              <span class="aw-bar-value">${formatNumber(item.value)}</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('appTotal').textContent = formatNumber(appTotal);
+      document.getElementById('webTotal').textContent = formatNumber(webTotal);
+      renderPanelBars('appBars', app, appTotal);
+      renderPanelBars('webBars', web, webTotal);
+
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     // =====================================================
@@ -3885,6 +4120,7 @@
       'top-searched': { page: 'performers', name: 'En Çok Aranan', default: true },
       'top-routed': { page: 'performers', name: 'En Çok Rota Çizilen', default: true },
       'platform-distribution': { page: 'performers', name: 'Platform Dağılımı', default: true },
+      'app-web-distribution': { page: 'performers', name: 'App/Web Dağılımı', default: true },
       'event-type-distribution': { page: 'performers', name: 'Etkinlik Türü', default: true },
       
       // Details Page
@@ -3942,6 +4178,17 @@
 
     // Apply visibility to DOM
     function applyComponentVisibility(visibility) {
+      // If App/Web has data, force-hide platform and force-show app-web (and vice versa)
+      const appWebEl = document.querySelector('[data-component="app-web-distribution"]');
+      const hasAppWeb = appWebEl && !appWebEl.querySelector('.no-data-small') &&
+        appWebEl.querySelector('#appTotal')?.textContent !== '0';
+      if (hasAppWeb) {
+        visibility['platform-distribution'] = false;
+        visibility['app-web-distribution'] = true;
+      } else {
+        visibility['app-web-distribution'] = false;
+      }
+
       Object.entries(visibility).forEach(([componentId, isVisible]) => {
         const elements = document.querySelectorAll(`[data-component="${componentId}"]`);
         elements.forEach(el => {
