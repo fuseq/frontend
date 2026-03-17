@@ -885,7 +885,7 @@
     // =====================================================
     // Configuration
     // =====================================================
-    const API_BASE_URL = 'http://localhost:3000/api'; // TEST - deploy öncesi geri al
+    const API_BASE_URL = 'https://matomo-analytics-backend.isohtel.com.tr/api';
     
     // =====================================================
     // State
@@ -2484,11 +2484,23 @@
 
       const app = appWebData.app || {};
       const web = appWebData.web || {};
-      const appTotal = app.total || (app.ios + app.android + (app.desktop || 0) + (app.other || 0)) || 0;
-      const webTotal = web.total || (web.ios + web.android + (web.desktop || 0) + (web.other || 0)) || 0;
-      const segmentTotal = appTotal + webTotal;
-      const otherTotal = Math.max(0, (totalVisits || 0) - segmentTotal);
-      const grandTotal = totalVisits || segmentTotal;
+
+      // App: only iOS + Android (no desktop)
+      const appIos = app.ios || 0;
+      const appAndroid = app.android || 0;
+      const appTotal = appIos + appAndroid;
+
+      // Web: segment data + unclassified traffic ("Diğer") absorbed into web
+      const webIos = web.ios || 0;
+      const webAndroid = web.android || 0;
+      const webDesktop = web.desktop || 0;
+      const webSegmentOther = web.other || 0;
+      const webSegmentTotal = webIos + webAndroid + webDesktop + webSegmentOther;
+      const unclassified = Math.max(0, (totalVisits || 0) - appTotal - webSegmentTotal);
+      const webOther = webSegmentOther + unclassified;
+      const webTotal = webIos + webAndroid + webDesktop + webOther;
+
+      const grandTotal = totalVisits || (appTotal + webTotal);
 
       if (grandTotal === 0) {
         const container = document.getElementById('appWebContainer');
@@ -2498,45 +2510,32 @@
 
       const appPct = ((appTotal / grandTotal) * 100).toFixed(1);
       const webPct = ((webTotal / grandTotal) * 100).toFixed(1);
-      const otherPct = ((otherTotal / grandTotal) * 100).toFixed(1);
       const ratio = appTotal > 0 ? (webTotal / appTotal).toFixed(1) : '∞';
 
-      // Summary
+      // Summary: toplam + yüzdeler only
       const summaryEl = document.getElementById('appWebSummary');
       if (summaryEl) {
-        let html = `
+        summaryEl.innerHTML = `
           <div class="aw-stat"><span class="aw-stat-label">Toplam Ziyaret</span><span class="aw-stat-value">${formatNumber(grandTotal)}</span></div>
-          <div class="aw-stat app-color"><span class="aw-stat-label">App</span><span class="aw-stat-value">${formatNumber(appTotal)} <small>(${appPct}%)</small></span></div>
-          <div class="aw-stat web-color"><span class="aw-stat-label">Web</span><span class="aw-stat-value">${formatNumber(webTotal)} <small>(${webPct}%)</small></span></div>`;
-        if (otherTotal > 0) {
-          html += `<div class="aw-stat other-color"><span class="aw-stat-label">Diğer</span><span class="aw-stat-value">${formatNumber(otherTotal)} <small>(${otherPct}%)</small></span></div>`;
-        }
-        html += `<div class="aw-stat"><span class="aw-stat-label">Web/App Oranı</span><span class="aw-stat-value">${ratio}x</span></div>`;
-        summaryEl.innerHTML = html;
+          <div class="aw-stat app-color"><span class="aw-stat-label">App</span><span class="aw-stat-value">${appPct}%</span></div>
+          <div class="aw-stat web-color"><span class="aw-stat-label">Web</span><span class="aw-stat-value">${webPct}%</span></div>
+          <div class="aw-stat"><span class="aw-stat-label">Web/App Oranı</span><span class="aw-stat-value">${ratio}x</span></div>
+        `;
       }
 
-      // Donut chart
+      // Donut chart: App vs Web (no separate "Diğer" slice)
       const canvas = document.getElementById('appWebDonutChart');
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (appWebDonutChart) appWebDonutChart.destroy();
 
-        const chartLabels = ['App', 'Web'];
-        const chartData = [appTotal, webTotal];
-        const chartColors = ['#8b5cf6', '#3b82f6'];
-        if (otherTotal > 0) {
-          chartLabels.push('Diğer');
-          chartData.push(otherTotal);
-          chartColors.push('#94a3b8');
-        }
-
         appWebDonutChart = new Chart(ctx, {
           type: 'doughnut',
           data: {
-            labels: chartLabels,
+            labels: ['App', 'Web'],
             datasets: [{
-              data: chartData,
-              backgroundColor: chartColors,
+              data: [appTotal, webTotal],
+              backgroundColor: ['#8b5cf6', '#3b82f6'],
               borderWidth: 0,
               hoverOffset: 6
             }]
@@ -2562,22 +2561,17 @@
       }
 
       // Panel bars helper
-      function renderPanelBars(containerId, data, total) {
+      function renderPanelBars(containerId, items, total) {
         const el = document.getElementById(containerId);
         if (!el) return;
 
-        const items = [
-          { label: 'iOS', value: data.ios || 0, color: '#636e88' },
-          { label: 'Android', value: data.android || 0, color: '#a3e635' },
-          { label: 'Desktop', value: data.desktop || 0, color: '#38bdf8' }
-        ].filter(i => i.value > 0);
-
-        if (items.length === 0) {
+        const filtered = items.filter(i => i.value > 0);
+        if (filtered.length === 0) {
           el.innerHTML = '<span class="no-data-small">Veri yok</span>';
           return;
         }
 
-        el.innerHTML = items.map(item => {
+        el.innerHTML = filtered.map(item => {
           const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
           return `
             <div class="aw-bar-row">
@@ -2591,10 +2585,21 @@
         }).join('');
       }
 
+      // App panel: iOS + Android only
       document.getElementById('appTotal').textContent = formatNumber(appTotal);
+      renderPanelBars('appBars', [
+        { label: 'iOS', value: appIos, color: '#636e88' },
+        { label: 'Android', value: appAndroid, color: '#a3e635' }
+      ], appTotal);
+
+      // Web panel: iOS + Android + Desktop + Diğer
       document.getElementById('webTotal').textContent = formatNumber(webTotal);
-      renderPanelBars('appBars', app, appTotal);
-      renderPanelBars('webBars', web, webTotal);
+      renderPanelBars('webBars', [
+        { label: 'iOS', value: webIos, color: '#636e88' },
+        { label: 'Android', value: webAndroid, color: '#a3e635' },
+        { label: 'Desktop', value: webDesktop, color: '#38bdf8' },
+        { label: 'Diğer', value: webOther, color: '#94a3b8' }
+      ], webTotal);
 
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }

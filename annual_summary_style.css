@@ -2039,6 +2039,12 @@ body {
   gap: 8px;
 }
 
+.web-panel .panel-bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+}
+
 .aw-bar-row {
   display: flex;
   align-items: center;
